@@ -3,7 +3,6 @@
 A modern, web-based RF simulation and link analysis tool designed for LoRa Mesh networks (Meshtastic, Reticulum, etc.). Built with React, Leaflet, and standard geospatial libraries.
 
 ![Link Analysis Demo](./public/mesh-analyzer-preview.png)
-_(Note: Add a screenshot here before committing)_
 
 ## Features
 
@@ -100,3 +99,7 @@ _(Note: Add a screenshot here before committing)_
 ## License
 
 MIT License. Free to use and modify.
+
+## Disclaimer
+
+This tool is provided as-is for educational and planning purposes only. This tool was created with Gemini 3.5 so results are not guaranteed to be accurate.
