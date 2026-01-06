@@ -12,9 +12,8 @@
 
 ### Docker (Recommended)
 
-1. Clone the repository.
-2. Run `docker-compose up -d --build`.
-3. Access the app at `http://localhost:5173`.
+1. Run `docker run -d -p 5173:5173 ghcr.io/d3mocide/mesh-analyzer:latest`
+2. Access the app at `http://localhost:5173`.
 
 ### Manual
 

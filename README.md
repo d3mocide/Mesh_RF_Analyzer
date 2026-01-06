@@ -44,7 +44,7 @@ A modern, web-based RF simulation and link analysis tool designed for LoRa Mesh 
 1.  Clone the repository:
 
     ```bash
-    git clone https://github.com/your-username/mesh-analyzer.git
+    git clone https://github.com/d3mocide/mesh-analyzer.git
     cd mesh-analyzer
     ```
 
@@ -62,12 +62,12 @@ A modern, web-based RF simulation and link analysis tool designed for LoRa Mesh 
 
 4.  Open `http://localhost:5173` in your browser.
 
-### Running with Docker
+### Running with Docker (No Install)
 
-1.  Build and run the container:
+1.  Run the pre-built image from GHCR:
 
     ```bash
-    docker-compose up --build
+    docker run -d -p 5173:5173 ghcr.io/d3mocide/mesh-analyzer:latest
     ```
 
 2.  Open `http://localhost:5173` in your browser.
