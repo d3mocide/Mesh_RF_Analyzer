@@ -76,6 +76,8 @@ docker run -d -p 5173:5173 ghcr.io/d3mocide/mesh_analyzer:latest
 docker-compose up -d
 ```
 
+_Note: You can configure `ALLOWED_HOSTS` in `docker-compose.yml` if accessing via a custom domain._
+
 2.  Open `http://localhost:5173` in your browser.
 
 ## Usage Guide

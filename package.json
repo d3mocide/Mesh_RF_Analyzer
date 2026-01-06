@@ -1,7 +1,7 @@
 {
   "name": "mesh-analyzer",
   "private": true,
-  "version": "0.1.0-rc",
+  "version": "0.2.0-rc",
   "type": "module",
   "scripts": {
     "dev": "vite",

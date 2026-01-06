@@ -1,29 +1,35 @@
-# v0.1-rc - Initial Release
+# Release Notes - v0.2-rc
 
-## Features
+## Mesh RF Analyzer - The Branding Update
 
-- **Real-time Link Analysis**: Calculate link budgets for LoRa Mesh networks (915MHz).
-- **Interactive Map**: Visualize nodes and links on a map with terrain data.
-- **Elevation Profiling**: View elevation profiles between two points using DEM data.
-- **Fresnel Zone Visualization**: Assess line-of-sight obstructions with Fresnel zone rendering.
-- **Preset Configurations**: Includes presets for common hardware/antennas.
+This release brings a polished identity to the project and important configuration fixes for deployment.
+
+### 🎨 Branding & Identity
+
+- **New Name**: Officially renamed to **Mesh RF Analyzer**.
+- **New Icon**: Added a sleek, cyber-aesthetic SVG icon (Gradient Hexagon).
+- **UI Updates**: Updated title in Browser Tab and Sidebar.
+
+### ⚙️ configuration & Troubleshooting
+
+- **Custom Domains**: Added `ALLOWED_HOSTS` support for deploying behind reverse proxies or on custom domains (fixes "Blocked host" errors).
+- **Docker Publishing**: Workflow now explicitly builds and pushes the `latest` tag to GHCR.
+- **Documentation**: Updated `README.md` with correct clone URLs and Docker run commands.
 
 ## Installation / Usage
 
 ### Docker (Recommended)
 
-1. Run `docker run -d -p 5173:5173 ghcr.io/d3mocide/mesh_analyzer:latest`
-2. Access the app at `http://localhost:5173`.
+```bash
+docker run -d -p 5173:5173 ghcr.io/d3mocide/mesh_analyzer:latest
+```
 
-### Manual
+### Docker Compose
 
-This is a web-based tool.
+```bash
+docker-compose up -d
+```
 
-1. Clone the repository.
-2. Run `npm install`.
-3. Run `npm run dev` to start the local server.
+### Disclaimer
 
-## Disclaimer
-
-> [!WARNING]
-> This tool is provided as-is for educational and planning purposes only. This tool was created with Gemini 3.5 so results are not guaranteed to be accurate. Digital Elevation Models may not reflect obstructions like buildings or dense vegetation.
+This tool is provided as-is for educational purposes. Calculations are estimates.

@@ -6,6 +6,9 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: true, // Needed for Docker
+    allowedHosts: process.env.ALLOWED_HOSTS 
+      ? (process.env.ALLOWED_HOSTS === 'true' ? true : process.env.ALLOWED_HOSTS.split(','))
+      : undefined,
     watch: {
       usePolling: true, // Needed for Windows file system in Docker
     }
