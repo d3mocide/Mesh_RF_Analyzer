@@ -76,7 +76,7 @@ const Sidebar = () => {
         textTransform: 'uppercase',
         letterSpacing: '0.05em'
       }}>
-        Mesh RF Analyzer
+        MeshRF
       </h2>
       
       {/* DEVICE SELECTION */}

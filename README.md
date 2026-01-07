@@ -1,4 +1,4 @@
-# MeshRF Analyzer
+# MeshRF
 
 A modern, web-based RF simulation and link analysis tool designed for LoRa Mesh networks (Meshtastic, Reticulum, etc.). Built with React, Leaflet, and standard geospatial libraries.
 
