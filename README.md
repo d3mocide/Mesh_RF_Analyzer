@@ -11,8 +11,6 @@ A professional-grade RF propagation and link analysis tool designed for LoRa Mes
 - **Geodetic Physics Engine**: Calculates **Earth Bulge** and effective terrain height based on link distance and configurable **K-Factor**.
 - **WISP-Grade Quality**: Evaluates links using the strict **60% Fresnel Zone Clearance** rule (Excellent/Good/Marginal/Obstructed).
 - **Multi-Variable Profile**: Visualizes Terrain, Earth Curvature, Line of Sight (LOS), and Fresnel Zones on a dynamic 2D chart.
-- **WISP-Grade Quality**: Evaluates links using the strict **60% Fresnel Zone Clearance** rule (Excellent/Good/Marginal/Obstructed).
-- **Multi-Variable Profile**: Visualizes Terrain, Earth Curvature, Line of Sight (LOS), and Fresnel Zones on a dynamic 2D chart.
 - **Clutter Awareness**: Simulates signal loss through trees or urban "clutter" layers.
 
 ### 📍 Smart Location Optimization
@@ -73,6 +71,7 @@ The system is designed as a set of microservices (Frontend, API, Worker, Redis).
          - VITE_MAP_LAT=45.5152 # Default Latitude (Portland, OR)
          - VITE_MAP_LNG=-122.6784 # Default Longitude
          # - VITE_ELEVATION_API_URL=https://api.open-meteo.com/v1/elevation (Optional override)
+         - ALLOWED_HOSTS=localhost,127.0.0.1,::1
    # IMPORTANT: Place your SRTM .hgt files in the ./cache directory for the RF Engine to work.
    ```
 
@@ -81,15 +80,54 @@ The system is designed as a set of microservices (Frontend, API, Worker, Redis).
 
    ```yaml
    services:
-     app:
-       image: ghcr.io/d3mocide/meshrf:latest
-       ports:
-         - "5173:5173"
-       environment:
-         - VITE_MAP_LAT=45.5152 # Default Latitude (Portland, OR)
-         - VITE_MAP_LNG=-122.6784 # Default Longitude
-         - VITE_ELEVATION_API_URL=https://api.open-meteo.com/v1/elevation
-         - ALLOWED_HOSTS=my-meshrf.com # For reverse proxies
+    app:
+      build: .
+      container_name: meshrf
+      ports:
+        - "5173:5173"
+      environment:
+        # Hostname for reverse proxy
+        - ALLOWED_HOSTS=localhost
+        # Custom Elevation API Endpoint (Optional)
+        # - VITE_ELEVATION_API_URL=http://localhost:8080/v1/elevation
+        # Default Map Center (Portland, OR)
+        - VITE_MAP_LAT=45.5152
+        - VITE_MAP_LNG=-122.6784
+      volumes:
+        - .:/app
+        - /app/node_modules
+      command: npm run dev -- --host
+
+    rf-engine:
+      build: ./rf-engine
+      container_name: rf_engine
+      ports:
+        - "5001:5001"
+      volumes:
+        - ./cache:/app/cache
+      restart: unless-stopped
+      depends_on:
+        - redis
+
+    rf-worker:
+      build: ./rf-engine
+      container_name: rf_worker
+      command: celery -A tasks worker --loglevel=info
+      volumes:
+        - ./cache:/app/cache
+      restart: unless-stopped
+      depends_on:
+        - redis
+        - rf-engine
+
+    redis:
+      image: redis:alpine
+      user: root
+      ports:
+        - "6379:6379"
+      volumes:
+        - ./redis_data:/data
+        restart: always
    ```
 
 5. Open `http://localhost:5173` in your browser.
