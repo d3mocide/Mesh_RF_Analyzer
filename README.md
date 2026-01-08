@@ -11,7 +11,14 @@ A professional-grade RF propagation and link analysis tool designed for LoRa Mes
 - **Geodetic Physics Engine**: Calculates **Earth Bulge** and effective terrain height based on link distance and configurable **K-Factor**.
 - **WISP-Grade Quality**: Evaluates links using the strict **60% Fresnel Zone Clearance** rule (Excellent/Good/Marginal/Obstructed).
 - **Multi-Variable Profile**: Visualizes Terrain, Earth Curvature, Line of Sight (LOS), and Fresnel Zones on a dynamic 2D chart.
+- **WISP-Grade Quality**: Evaluates links using the strict **60% Fresnel Zone Clearance** rule (Excellent/Good/Marginal/Obstructed).
+- **Multi-Variable Profile**: Visualizes Terrain, Earth Curvature, Line of Sight (LOS), and Fresnel Zones on a dynamic 2D chart.
 - **Clutter Awareness**: Simulates signal loss through trees or urban "clutter" layers.
+
+### 📍 Smart Location Optimization
+
+- **Area Search**: Draw a bounding box on the map to automatically scan for optimal node placement.
+- **Heatmap Scoring**: Analyzes terrain and line-of-sight to suggest the best locations based on RF coverage. (Powered by the **RF Engine** background worker).
 
 ### ⚡ Batch Operations
 
@@ -37,16 +44,39 @@ A professional-grade RF propagation and link analysis tool designed for LoRa Mes
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/) (v18+) **OR** [Docker](https://www.docker.com/)
+- **SRTM Data**: You must provide local `.hgt` elevation files for your area of interest.
 
 ### 🐳 Running with Docker (Recommended)
 
-1. **Pull and Run**:
+The system is designed as a set of microservices (Frontend, API, Worker, Redis). The easiest way to run it is with Docker Compose.
+
+1. **Clone and Run**:
 
    ```bash
-   docker run -d -p 5173:5173 ghcr.io/d3mocide/meshrf:latest
+   git clone https://github.com/d3mocide/meshrf.git
+   cd meshrf
+   docker compose up --build
    ```
 
-2. **Custom Configuration (Docker Compose)**:
+2. **Access the App**:
+
+   - Frontend: `http://localhost:5173`
+   - RF Engine API: `http://localhost:5001/docs` (Swagger UI)
+
+3. **Custom Configuration**:
+   You can configure the default map location and elevation source via environment variables in `docker-compose.yml`.
+
+   ```yaml
+   services:
+     app:
+       environment:
+         - VITE_MAP_LAT=45.5152 # Default Latitude (Portland, OR)
+         - VITE_MAP_LNG=-122.6784 # Default Longitude
+         # - VITE_ELEVATION_API_URL=https://api.open-meteo.com/v1/elevation (Optional override)
+   # IMPORTANT: Place your SRTM .hgt files in the ./cache directory for the RF Engine to work.
+   ```
+
+4. **Custom Configuration (Docker Compose)**:
    You can configure the default map location and elevation source via environment variables.
 
    ```yaml
@@ -62,7 +92,7 @@ A professional-grade RF propagation and link analysis tool designed for LoRa Mes
          - ALLOWED_HOSTS=my-meshrf.com # For reverse proxies
    ```
 
-3. Open `http://localhost:5173` in your browser.
+5. Open `http://localhost:5173` in your browser.
 
 ### 💻 Running Locally (Development)
 
@@ -80,8 +110,16 @@ A professional-grade RF propagation and link analysis tool designed for LoRa Mes
     ```
 
 3.  Start the dev server:
+
     ```bash
     npm run dev
+    ```
+
+4.  **Backend Setup (Required for Analysis)**:
+    The frontend requires the Python backend to perform calculations. You can run the backend via Docker while developing the frontend locally:
+
+    ```bash
+    docker compose up rf-engine rf-worker redis
     ```
 
 ---
@@ -100,14 +138,23 @@ A professional-grade RF propagation and link analysis tool designed for LoRa Mes
 
 ---
 
-## 🏗️ Project Structure
+## 🏗️ Architecture
+
+The project follows a modern microservices pattern:
+
+- **Frontend (`src/`)**: React + Leaflet + Vite. Handles UI, map interactions, and visualizes results.
+- **RF Engine (`rf-engine/server.py`)**: Python FastAPI service. Performs geodetic calculations and API endpoints.
+- **RF Worker (`rf-engine/rf_worker.py`)**: Celery worker consuming tasks from Redis. Handles heavy batch processing and optimization jobs.
+- **Redis**: Message broker and caching layer.
+
+### Directory Structure
 
 - `src/components`: UI components (Map, Sidebar, Charts).
 - `src/context`: Global RF state and batch processing logic.
 - `src/utils`:
-  - `rfMath.js`: Core physics engine (Geodetic calc, Fresnel, Path Loss).
-  - `elevation.js`: DEM data fetching and processing.
-- `src/data`: Hardware definition libraries.
+  - `rfMath.js`: Frontend utils for quick estimates.
+  - `rfService.js`: API client for the **RF Engine**.
+- `rf-engine`: Backend Python service (FastAPI + Celery).
 
 ## 📄 License
 

@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+
+celery
+redis
+rasterio
+numpy
+scipy

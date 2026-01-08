@@ -2,10 +2,10 @@ name: Docker
 
 on:
   push:
-    branches: ["main"]
+    branches: ["dev"]
     tags: ["v*.*.*"]
   pull_request:
-    branches: ["main"]
+    branches: ["dev"]
 
 env:
   REGISTRY: ghcr.io
@@ -17,6 +17,17 @@ jobs:
     permissions:
       contents: read
       packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - context: .
+            image-suffix: ""
+            dockerfile: Dockerfile
+          - context: ./rf-engine
+            image-suffix: "-rf-engine"
+            dockerfile: ./rf-engine/Dockerfile
 
     steps:
       - name: Checkout repository
@@ -34,7 +45,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}${{ matrix.image-suffix }}
           tags: |
             type=ref,event=branch
             type=ref,event=tag
@@ -43,7 +54,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

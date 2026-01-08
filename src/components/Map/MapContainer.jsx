@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { MapContainer, TileLayer } from 'react-leaflet';
+import { MapContainer, TileLayer, ImageOverlay } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import LinkLayer from './LinkLayer';
 import LinkAnalysisPanel from './LinkAnalysisPanel';
+import OptimizationLayer from './OptimizationLayer';
 import { useRF } from '../../context/RFContext';
 import { calculateLinkBudget } from '../../utils/rfMath';
 import * as turf from '@turf/turf';
@@ -30,6 +31,8 @@ const MapComponent = () => {
   // Lifted State
   const [nodes, setNodes] = useState([]); 
   const [linkStats, setLinkStats] = useState({ minClearance: 0, isObstructed: false, loading: false });
+  const [coverageOverlay, setCoverageOverlay] = useState(null); // { url, bounds }
+  const [toolMode, setToolMode] = useState('link'); // 'link', 'optimize', 'none'
   
   // Calculate Budget at container level for Panel
   const { txPower, antennaGain, freq, sf, bw, cableLoss, units, mapStyle, batchNodes } = useRF();
@@ -95,8 +98,64 @@ const MapComponent = () => {
             setNodes={setNodes}
             linkStats={linkStats}
             setLinkStats={setLinkStats}
+            setCoverageOverlay={setCoverageOverlay}
+            active={toolMode === 'link'}
         />
+        {coverageOverlay && (
+             <ImageOverlay 
+                url={coverageOverlay.url}
+                bounds={coverageOverlay.bounds}
+                opacity={0.6}
+             />
+        )}
+        <OptimizationLayer active={toolMode === 'optimize'} setActive={(active) => setToolMode(active ? 'optimize' : 'none')} />
       </MapContainer>
+
+      {/* Tool Toggles */}
+      <div style={{ position: 'absolute', top: 20, left: 60, zIndex: 1000, display: 'flex', gap: '10px' }}>
+          <button 
+            onClick={() => {
+                if (toolMode === 'link') {
+                    // Toggling OFF
+                    setToolMode('none');
+                    setNodes([]);
+                    setLinkStats({ minClearance: 0, isObstructed: false, loading: false });
+                    setCoverageOverlay(null);
+                } else {
+                    // Toggling ON
+                    setToolMode('link');
+                }
+            }}
+            style={{
+                background: toolMode === 'link' ? '#00ff41' : '#222',
+                color: toolMode === 'link' ? '#000' : '#fff',
+                border: '1px solid #444',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.5)'
+            }}
+          >
+            Link Analysis
+          </button>
+
+          <button 
+            onClick={() => setToolMode(toolMode === 'optimize' ? 'none' : 'optimize')}
+            style={{
+                background: toolMode === 'optimize' ? '#00f2ff' : '#222',
+                color: toolMode === 'optimize' ? '#000' : '#fff',
+                border: '1px solid #444',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.5)'
+            }}
+          >
+            {toolMode === 'optimize' ? 'Cancel Find' : 'Find Ideal Spot'}
+          </button>
+      </div>
 
       {/* Overlay Panel */}
       {nodes.length === 2 && (

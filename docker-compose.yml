@@ -1,6 +1,6 @@
 services:
   app:
-    image: ghcr.io/d3mocide/meshrf:latest
+    build: .
     container_name: meshrf
     ports:
       - "5173:5173"
@@ -16,3 +16,36 @@ services:
       - .:/app
       - /app/node_modules
     command: npm run dev -- --host
+
+  rf-engine:
+    build: ./rf-engine
+    container_name: rf_engine
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./cache:/app/cache
+
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+  rf-worker:
+    build: ./rf-engine
+    container_name: rf_worker
+    command: celery -A tasks worker --loglevel=info
+    volumes:
+      - ./cache:/app/cache
+
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - rf-engine
+
+  redis:
+    image: redis:alpine
+    user: root
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis_data:/data
+    restart: always
