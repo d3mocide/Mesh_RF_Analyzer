@@ -54,20 +54,26 @@ A professional-grade RF propagation and link analysis tool designed for LoRa Mes
 
 ### 🐳 Running with Docker (Recommended)
 
-The system is designed as a set of microservices (Frontend, API, Worker, Redis). The easiest way to run it is with Docker Compose.
+**For Production/End Users** - Uses pre-built images from GitHub Container Registry:
 
 1. **Clone and Run**:
 
    ```bash
    git clone https://github.com/d3mocide/meshrf.git
    cd meshrf
-   docker compose up --build
+   docker compose up
    ```
 
 2. **Access the App**:
 
    - Frontend: `http://localhost:5173`
    - RF Engine API: `http://localhost:5001/docs` (Swagger UI)
+
+**For Development** - Builds from source with live reloading:
+
+```bash
+docker compose -f docker-compose.dev.yml up --build
+```
 
 3. **Elevation Data Configuration** (Optional):
 

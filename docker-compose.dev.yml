@@ -1,18 +1,24 @@
 services:
   app:
-    image: ghcr.io/d3mocide/meshrf:latest
+    build: .
     container_name: meshrf
     ports:
       - "5173:5173"
     environment:
-      # Hostname for reverse proxy
+    # Hostname for reverse proxy
       - ALLOWED_HOSTS=localhost
-      # Default Map Center (Portland, OR)
+    # Custom Elevation API Endpoint (Optional)
+    # - VITE_ELEVATION_API_URL=http://localhost:8080/v1/elevation
+    # Default Map Center (Portland, OR)
       - VITE_MAP_LAT=45.5152
       - VITE_MAP_LNG=-122.6784
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: npm run dev -- --host
 
   rf-engine:
-    image: ghcr.io/d3mocide/meshrf-rf-engine:latest
+    build: ./rf-engine
     container_name: rf_engine
     ports:
       - "5001:5001"
@@ -26,6 +32,7 @@ services:
       # See: https://www.opentopodata.org/datasets/
       - ELEVATION_DATASET=${ELEVATION_DATASET:-srtm30m}
     volumes:
+      - ./rf-engine:/app
       - ./cache:/app/cache
 
     restart: unless-stopped
@@ -33,10 +40,11 @@ services:
       - redis
 
   rf-worker:
-    image: ghcr.io/d3mocide/meshrf-rf-engine:latest
+    build: ./rf-engine
     container_name: rf_worker
     command: celery -A tasks worker --loglevel=info
     volumes:
+      - ./rf-engine:/app
       - ./cache:/app/cache
 
     restart: unless-stopped
