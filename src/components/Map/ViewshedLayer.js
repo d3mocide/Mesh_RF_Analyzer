@@ -127,7 +127,7 @@ export class ViewshedLayer extends TileLayer {
 ViewshedLayer.defaultProps = {
     ...TileLayer.defaultProps,
     id: 'viewshed-tiles',
-    data: 'http://localhost:5001/tiles/{z}/{x}/{y}.png',
+    data: '/api/tiles/{z}/{x}/{y}.png',
     minZoom: 0,
     maxZoom: 14,
     tileSize: 256,

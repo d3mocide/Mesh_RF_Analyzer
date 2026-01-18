@@ -82,7 +82,7 @@ export function useViewshedTool(active) {
             // 1. Fetch Elevation Data from Backend Tile Server (Terrain-RGB)
             const zoom = 12; // Matches backend default
             const tile = getTile(lat, lon, zoom);
-            const tileUrl = `http://localhost:5001/tiles/${tile.z}/${tile.x}/${tile.y}.png`;
+            const tileUrl = `/api/tiles/${tile.z}/${tile.x}/${tile.y}.png`;
             
             // Load and decode Image
             const img = new Image();

@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:5001';
+const API_URL = '/api';
 
 export const optimizeLocation = async (bounds, freq, height) => {
     // bounds: { _southWest: { lat, lng }, _northEast: { lat, lng } } or similar Leaflet bounds

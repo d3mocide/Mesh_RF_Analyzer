@@ -11,6 +11,13 @@ export default defineConfig({
       : undefined,
     watch: {
       usePolling: true, // Needed for Windows file system in Docker
+    },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5001',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      }
     }
   }
 })
