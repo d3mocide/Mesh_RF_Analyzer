@@ -1,6 +1,6 @@
 # Release Notes
 
-## v1.4 - Batch UX & Interface Refinement
+## v1.5 - Major Feature Update: Batch UX & Interface Refinement
 
 This version focuses on significant UX improvements for the Batch Node tool, enhanced interface controls with panel minimization, and overall system cleanup for a more responsive and professional feel.
 
