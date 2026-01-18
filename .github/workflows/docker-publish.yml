@@ -28,6 +28,9 @@ jobs:
           - context: ./rf-engine
             image-suffix: "-rf-engine"
             dockerfile: ./rf-engine/Dockerfile
+          - context: ./opentopodata
+            image-suffix: "-opentopodata"
+            dockerfile: ./opentopodata/docker/Dockerfile
         platform:
           - name: linux/amd64
             tag-suffix: "-amd64"

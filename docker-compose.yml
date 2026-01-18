@@ -46,9 +46,7 @@ services:
     restart: always
 
   opentopodata:
-    build:
-      context: ./opentopodata
-      dockerfile: docker/Dockerfile
+    image: ghcr.io/d3mocide/meshrf-opentopodata:latest
     container_name: opentopodata
     ports:
       - "5000:5000"

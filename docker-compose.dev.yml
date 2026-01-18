@@ -15,10 +15,40 @@ services:
       - VITE_MAP_LNG=-122.6784
 
   rf-engine:
+    build: ./rf-engine
+    container_name: rf_engine_dev
+    ports:
+      - "5001:5001"
+    environment:
+      - ELEVATION_API_URL=http://opentopodata:5000
+      - ELEVATION_DATASET=${ELEVATION_DATASET:-srtm30m}
     # Overlay dev volumes for Python hot-reloading
     volumes:
       - ./rf-engine:/app
       - ./cache:/app/cache
     # Run uvicorn with reload
     command: ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "5001", "--reload"]
+    depends_on:
+      - redis
+      - opentopodata
+
+  redis:
+    image: redis:alpine
+    user: root
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis_data:/data
+    restart: always
+
+  opentopodata:
+    build:
+      context: ./opentopodata
+      dockerfile: docker/Dockerfile
+    container_name: opentopodata_dev
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data/opentopodata:/app/data
+    restart: unless-stopped
 

@@ -2,7 +2,7 @@
 
 A professional-grade RF propagation and link analysis tool designed for LoRa Mesh networks (Meshtastic, Reticulum, Sidewinder). Built with **React**, **Leaflet**, and a high-fidelity **Geodetic Physics Engine**.
 
-![Link Analysis Demo](./public/meshrf-preview.png)
+![Link Analysis Demo](./public/meshrf-preview-1.5.png.png)
 
 ## ✨ Features
 
@@ -118,10 +118,10 @@ docker compose -f docker-compose.dev.yml up --build
     ```
 
 4.  **Backend Setup (Required for Analysis)**:
-    The frontend requires the Python backend to perform calculations. You can run the backend via Docker while developing the frontend locally:
+    The frontend requires the Python backend and elevation service. You can run them via Docker while developing the frontend locally:
 
     ```bash
-    docker compose up rf-engine rf-worker redis
+    docker compose up rf-engine opentopodata redis
     ```
 
 ---
@@ -144,10 +144,10 @@ docker compose -f docker-compose.dev.yml up --build
 
 The project follows a modern microservices pattern:
 
-- **Frontend (`src/`)**: React + Leaflet + Vite. Handles UI, map interactions, and visualizes results.
-- **RF Engine (`rf-engine/server.py`)**: Python FastAPI service. Performs geodetic calculations and API endpoints.
-- **RF Worker (`rf-engine/rf_worker.py`)**: Celery worker consuming tasks from Redis. Handles heavy batch processing and optimization jobs.
-- **Redis**: Message broker and caching layer.
+- **Frontend (`src/`)**: React + Leaflet + Vite. Handles UI, map interactions, and heavy geodetic calculations via Wasm.
+- **RF Engine (`rf-engine/server.py`)**: Python FastAPI service. Serves elevation data and handles synchronous optimization scans.
+- **OpenTopoData**: Self-hosted elevation API providing geodetic data without rate limits.
+- **Redis**: Caching layer for elevation and analysis results.
 
 ### Directory Structure
 
