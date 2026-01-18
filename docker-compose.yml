@@ -2,19 +2,14 @@ services:
   app:
     image: ghcr.io/d3mocide/meshrf:latest
     container_name: meshrf
-    # ports:
-    #   - "5173:80"
+    ports:
+      - "5173:80"
     environment:
       # Hostname for reverse proxy
       - ALLOWED_HOSTS=localhost
       # Default Map Center (Portland, OR)
       - VITE_MAP_LAT=45.5152
       - VITE_MAP_LNG=-122.6784
-    # No volumes needed for production artifact
-    # volumes:
-    #   - .:/app
-    #   - /app/node_modules
-    # command: npm run dev -- --host
 
   rf-engine:
     image: ghcr.io/d3mocide/meshrf-rf-engine:latest

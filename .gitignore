@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -29,6 +30,9 @@ dist-ssr
 
 
 # Build Artifacts
-
+redis_data/*
 rf-engine/__pycache__/
 AI_DEV_STARTUP_PROMPT.md
+
+# Custom Docker
+docker-compose-astro.yml
