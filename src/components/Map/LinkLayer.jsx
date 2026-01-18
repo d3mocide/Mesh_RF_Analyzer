@@ -4,7 +4,6 @@ import L from 'leaflet';
 import { useRF } from '../../context/RFContext';
 import { calculateLinkBudget, calculateFresnelRadius, calculateFresnelPolygon, analyzeLinkProfile } from '../../utils/rfMath';
 import { fetchElevationPath } from '../../utils/elevation';
-import { analyzeCoverage } from '../../utils/rfService';
 import useThrottledCalculation from '../../hooks/useThrottledCalculation';
 import * as turf from '@turf/turf';
 
@@ -12,14 +11,14 @@ import * as turf from '@turf/turf';
 
 const txIcon = L.divIcon({
     className: 'custom-icon-tx',
-    html: `<div style="background-color: #00ff41; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 6px black;"></div>`,
+    html: `<div style="background-color: #00ff41; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(0, 255, 65, 0.8);"></div>`,
     iconSize: [20, 20],
     iconAnchor: [10, 10]
 });
 
 const rxIcon = L.divIcon({
     className: 'custom-icon-rx',
-    html: `<div style="background-color: #ff0000; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 6px black;"></div>`,
+    html: `<div style="background-color: #ff0000; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(255, 0, 0, 0.8);"></div>`,
     iconSize: [20, 20],
     iconAnchor: [10, 10]
 });
@@ -80,6 +79,16 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
     useMapEvents({
         click(e) {
             if (!active) return;
+            
+            // Ignore clicks on UI panels and controls
+            if (e.originalEvent && e.originalEvent.target) {
+                const target = e.originalEvent.target;
+                // Check if click is within a leaflet-control element or batch panel
+                if (target.closest('.leaflet-control') || target.closest('[data-batch-panel="true"]')) {
+                    return;
+                }
+            }
+            
             const { lat, lng } = e.latlng;
             setNodes(prev => {
                 if (prev.length >= 2) return [{ lat, lng, locked: false }]; // Reset if full
@@ -130,14 +139,6 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
         });
     }, [runAnalysis, setNodes]);
 
-    // Ref for the clear button container to prevent map clicks
-    // Using callback ref to ensure it works when element is conditionally rendered
-    const handleClearBtnRef = useCallback((node) => {
-        if (node) {
-            L.DomEvent.disableClickPropagation(node);
-        }
-    }, []);
-
     if (nodes.length < 2) {
         return (
             <>
@@ -151,31 +152,10 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
                             drag: (e) => handleDrag(idx, e),
                             dragend: (e) => handleDragEnd(idx, e)
                         }}
-                    >
+                     >
                          <Popup>
                              <div><strong>{idx === 0 ? "TX (Point A)" : "RX (Point B)"}</strong></div>
                              {pos.locked && <div><small>(Locked)</small></div>}
-                             <div style={{ marginTop: '5px' }}>
-                                <button 
-                                    onClick={(e) => {
-                                        e.stopPropagation(); 
-                                        analyzeCoverage(pos.lat, pos.lng, freq, antennaHeight)
-                                            .then(data => {
-                                                if(data.map_url && data.bounds) {
-                                                    const bounds = data.bounds; 
-                                                    setCoverageOverlay({ url: 'http://localhost:5001' + data.map_url, bounds });
-                                                }
-                                            })
-                                            .catch(err => alert("Simulation failed: " + err));
-                                    }}
-                                    style={{
-                                        background: '#0a84ff', color: 'white', border: 'none', 
-                                        padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8em'
-                                    }}
-                                >
-                                    Simulate Coverage
-                                </button>
-                             </div>
                          </Popup>
                     </Marker>
                 ))}
@@ -233,27 +213,6 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
                 <Popup>
                     <div><strong>TX (Point A)</strong></div>
                     {p1.locked && <div><small>(Locked)</small></div>}
-                    <div style={{ marginTop: '5px' }}>
-                        <button 
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                analyzeCoverage(p1.lat, p1.lng, freq, antennaHeight)
-                                    .then(data => {
-                                        if(data.map_url && data.bounds) {
-                                            const bounds = data.bounds;
-                                            setCoverageOverlay({ url: 'http://localhost:5001' + data.map_url, bounds });
-                                        }
-                                    })
-                                    .catch(err => alert("Simulation failed: " + err));
-                            }}
-                            style={{
-                                background: '#0a84ff', color: 'white', border: 'none', 
-                                padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8em'
-                            }}
-                        >
-                            Simulate Coverage
-                        </button>
-                    </div>
                 </Popup>
             </Marker>
             <Marker 
@@ -293,38 +252,6 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
                 }}
             />
 
-            {/* Clear Link Button */}
-             <div className="leaflet-bottom leaflet-right" style={{ pointerEvents: 'none', marginBottom: '50px', marginRight: '20px', zIndex: 9999, position: 'absolute' }}>
-                 <div ref={handleClearBtnRef} style={{ pointerEvents: 'auto' }}> {/* Re-enable pointer events for the button */}
-                    <button 
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            // preventDefault to stop map propagation
-                            e.preventDefault();
-                            setNodes([]);
-                            setLinkStats({ minClearance: 0, isObstructed: false, loading: false });
-                            setCoverageOverlay(null);
-                        }}
-                        style={{ 
-                             padding: '8px 24px', 
-                             background: 'rgba(0,0,0,0.6)', 
-                             color: '#fff', 
-                             border: '1px solid rgba(255,255,255,0.2)', 
-                             borderRadius: '20px', 
-                             cursor: 'pointer',
-                             backdropFilter: 'blur(4px)',
-                             fontSize: '0.9em',
-                             transition: 'all 0.2s ease',
-                             boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
-                             zIndex: 9999
-                         }}
-                         onMouseOver={(e) => e.target.style.background = 'rgba(0,0,0,0.8)'}
-                         onMouseOut={(e) => e.target.style.background = 'rgba(0,0,0,0.6)'}
-                     >
-                        Clear Link
-                     </button>
-                 </div>
-             </div>
         </>
     );
 };

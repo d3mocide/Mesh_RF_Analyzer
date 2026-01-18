@@ -1,4 +1,4 @@
-@import './styles/variables.css';
+@import "./styles/variables.css";
 
 /* Leaflet map fix for layout */
 .leaflet-container {
@@ -6,7 +6,9 @@
   height: 100%;
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -21,12 +23,65 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent; 
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #555; 
+  background: #555;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #777; 
+  background: #777;
 }
+
+/* Batch Node Selection Animations */
+@keyframes pulse-green {
+  0%,
+  100% {
+    box-shadow: 0 0 8px rgba(0, 255, 65, 0.6);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(0, 255, 65, 1);
+    transform: scale(1.1);
+  }
+}
+
+@keyframes pulse-red {
+  0%,
+  100% {
+    box-shadow: 0 0 8px rgba(255, 0, 0, 0.6);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 0, 0, 1);
+    transform: scale(1.1);
+  }
+}
+
+.batch-node-selected-tx {
+  animation: pulse-green 1.5s ease-in-out infinite;
+}
+
+.batch-node-selected-rx {
+  animation: pulse-red 1.5s ease-in-out infinite;
+}
+
+/* Batch Nodes Panel Scrollbar */
+.batch-nodes-scrollable::-webkit-scrollbar {
+  width: 8px;
+}
+
+.batch-nodes-scrollable::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.batch-nodes-scrollable::-webkit-scrollbar-thumb {
+  background: rgba(0, 242, 255, 0.3);
+  border-radius: 4px;
+}
+
+.batch-nodes-scrollable::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 242, 255, 0.5);
+}
+

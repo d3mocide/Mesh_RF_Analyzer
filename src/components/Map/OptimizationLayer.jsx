@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { useMapEvents, Rectangle, Marker, Popup, FeatureGroup } from 'react-leaflet';
+import React, { useState, useEffect, useRef } from 'react';
+import { useMapEvents, Rectangle, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { optimizeLocation } from '../../utils/rfService';
 import { useRF } from '../../context/RFContext';
+import OptimizationResultsPanel from './OptimizationResultsPanel';
 
 const createRankedIcon = (rank) => L.divIcon({
     className: 'ghost-icon',
@@ -26,6 +27,9 @@ const OptimizationLayer = ({ active, setActive }) => {
     const [loading, setLoading] = useState(false);
     const [locked, setLocked] = useState(false);
     const [notification, setNotification] = useState(null); // { message, type }
+    const [showResults, setShowResults] = useState(false);
+    const map = useMapEvents({}); 
+    const rectRef = useRef(null); 
     
     const { freq, antennaHeight } = useRF();
 
@@ -65,13 +69,15 @@ const OptimizationLayer = ({ active, setActive }) => {
             const result = await optimizeLocation(bounds, freq, antennaHeight);
             if (result.status === 'success') {
                 setGhostNodes(result.locations);
-                setNotification({ message: `Optimization complete! Found ${result.locations.length} ideal spots.`, type: 'success' });
+                setShowResults(true); // Auto-show results
+                // Transient success message
+                setNotification({ message: `Scan complete! Found ${result.locations.length} ideal spots.`, type: 'success', transient: true });
             } else {
-                 setNotification({ message: result.message || "Optimization failed. Server returned an error.", type: 'error' });
+                 setNotification({ message: result.message || "Scan failed. Server returned an error.", type: 'error' });
             }
         } catch (err) {
             console.error(err);
-            setNotification({ message: "Optimization failed. Please try again.", type: 'error' });
+            setNotification({ message: "Scan failed. Please try again.", type: 'error' });
         } finally {
             setLoading(false);
         }
@@ -85,7 +91,25 @@ const OptimizationLayer = ({ active, setActive }) => {
         setGhostNodes([]);
         setLocked(false);
         setNotification(null);
+        setShowResults(false);
     }
+
+    // Reset when deactivated specificially
+    useEffect(() => {
+        if (!active) {
+            reset();
+        }
+    }, [active]);
+
+    // Internal auto-close for transient notifications
+    useEffect(() => {
+        if (notification && notification.transient) {
+            const timer = setTimeout(() => {
+                setNotification(null);
+            }, 1000); // Clear after 1 second
+            return () => clearTimeout(timer);
+        }
+    }, [notification]);
 
     if (!active && !ghostNodes.length) return null;
 
@@ -108,10 +132,50 @@ const OptimizationLayer = ({ active, setActive }) => {
 
             {/* Bounding Box */}
             {bounds && (
-                <Rectangle 
-                    bounds={bounds} 
-                    pathOptions={{ color: '#00f2ff', weight: 1, dashArray: '5,5', fillOpacity: 0.1 }} 
-                />
+                <>
+                    <Rectangle 
+                        ref={rectRef}
+                        bounds={bounds} 
+                        pathOptions={{ color: '#00f2ff', weight: 1, dashArray: '5,5', fillOpacity: 0.1 }} 
+                    />
+                    
+                    {/* Draggable Corner Markers */}
+                    {active && startPoint && endPoint && (
+                        <>
+                            <Marker 
+                                position={startPoint} 
+                                draggable={true}
+                                icon={L.divIcon({ className: 'corner-handle', html: '<div style="width: 20px; height: 20px; background: #00f2ff; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 5px rgba(0,0,0,0.5);"></div>', iconSize: [20, 20], iconAnchor: [10, 10] })}
+                                eventHandlers={{
+                                    drag: (e) => {
+                                         // Imperative update to avoid re-render loop killing drag
+                                         if (rectRef.current) {
+                                             rectRef.current.setBounds(L.latLngBounds(e.target.getLatLng(), endPoint));
+                                         }
+                                    },
+                                    dragend: (e) => {
+                                        setStartPoint(e.target.getLatLng());
+                                    }
+                                }}
+                            />
+                            <Marker 
+                                position={endPoint} 
+                                draggable={true}
+                                icon={L.divIcon({ className: 'corner-handle', html: '<div style="width: 20px; height: 20px; background: #00f2ff; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 5px rgba(0,0,0,0.5);"></div>', iconSize: [20, 20], iconAnchor: [10, 10] })}
+                                eventHandlers={{
+                                    drag: (e) => {
+                                        if (rectRef.current) {
+                                             rectRef.current.setBounds(L.latLngBounds(startPoint, e.target.getLatLng()));
+                                         }
+                                    },
+                                    dragend: (e) => {
+                                        setEndPoint(e.target.getLatLng());
+                                    }
+                                }}
+                            />
+                        </>
+                    )}
+                </>
             )}
 
             {/* Ghost Nodes */}
@@ -207,7 +271,7 @@ const OptimizationLayer = ({ active, setActive }) => {
                     {/* Text */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <div style={{ fontSize: '1.4em', fontWeight: '700', letterSpacing: '0.5px', color: '#fff' }}>
-                            {notification.type === 'success' ? 'OPTIMIZATION COMPLETE' : 'ANALYSIS FAILED'}
+                            {notification.type === 'success' ? 'SCAN COMPLETE' : 'ANALYSIS FAILED'}
                         </div>
                         <div style={{ fontSize: '1em', color: 'rgba(255, 255, 255, 0.7)', maxWidth: '280px', lineHeight: '1.5' }}>
                             {notification.message}
@@ -215,66 +279,65 @@ const OptimizationLayer = ({ active, setActive }) => {
                     </div>
 
                     {/* Button */}
-                    <button 
-                        onClick={() => setNotification(null)}
-                        style={{
-                            marginTop: '12px',
-                            padding: '12px 32px',
-                            background: notification.type === 'success' 
-                                ? 'linear-gradient(90deg, rgba(50, 255, 100, 0.2), rgba(50, 255, 100, 0.1))' 
-                                : 'linear-gradient(90deg, rgba(255, 50, 50, 0.2), rgba(255, 50, 50, 0.1))',
-                            border: notification.type === 'success' ? '1px solid rgba(50, 255, 100, 0.4)' : '1px solid rgba(255, 50, 50, 0.4)',
-                            borderRadius: '12px',
-                            color: 'white',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            fontSize: '1em',
-                            transition: 'all 0.2s ease',
-                            textTransform: 'uppercase',
-                            letterSpacing: '1px'
-                        }}
-                        onMouseOver={(e) => {
-                            e.target.style.transform = 'translateY(-2px)';
-                            e.target.style.boxShadow = notification.type === 'success' 
-                                ? '0 0 15px rgba(50, 255, 100, 0.3)' 
-                                : '0 0 15px rgba(255, 50, 50, 0.3)';
-                        }}
-                        onMouseOut={(e) => {
-                            e.target.style.transform = 'translateY(0)';
-                            e.target.style.boxShadow = 'none';
-                        }}
-                    >
-                        {notification.type === 'success' ? 'VIEW RESULTS' : 'CLOSE'}
-                    </button>
+                    {/* Button - Only show if not transient (i.e. error) */}
+                    {!notification.transient && (
+                        <button 
+                            onClick={() => {
+                                if (notification.type === 'success') {
+                                    setShowResults(true);
+                                    setNotification(null);
+                                } else {
+                                    setNotification(null);
+                                }
+                            }}
+                            style={{
+                                marginTop: '12px',
+                                padding: '12px 32px',
+                                background: notification.type === 'success' 
+                                    ? 'linear-gradient(90deg, rgba(50, 255, 100, 0.2), rgba(50, 255, 100, 0.1))' 
+                                    : 'linear-gradient(90deg, rgba(255, 50, 50, 0.2), rgba(255, 50, 50, 0.1))',
+                                border: notification.type === 'success' ? '1px solid rgba(50, 255, 100, 0.4)' : '1px solid rgba(255, 50, 50, 0.4)',
+                                borderRadius: '12px',
+                                color: 'white',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                fontSize: '1em',
+                                transition: 'all 0.2s ease',
+                                textTransform: 'uppercase',
+                                letterSpacing: '1px'
+                            }}
+                            onMouseOver={(e) => {
+                                e.target.style.transform = 'translateY(-2px)';
+                                e.target.style.boxShadow = notification.type === 'success' 
+                                    ? '0 0 15px rgba(50, 255, 100, 0.3)' 
+                                    : '0 0 15px rgba(255, 50, 50, 0.3)';
+                            }}
+                            onMouseOut={(e) => {
+                                e.target.style.transform = 'translateY(0)';
+                                e.target.style.boxShadow = 'none';
+                            }}
+                        >
+                            {notification.type === 'success' ? 'VIEW RESULTS' : 'CLOSE'}
+                        </button>
+                    )}
                 </div>
+            )}
+            
+            {/* Results Panel */}
+            {showResults && ghostNodes.length > 0 && (
+                <OptimizationResultsPanel 
+                    results={ghostNodes} 
+                    onClose={() => setShowResults(false)}
+                    onCenter={(node) => {
+                        if (map) map.flyTo([node.lat, node.lon], 16, { duration: 1.5 });
+                    }}
+                    onReset={reset}
+                    onRecalculate={() => handleOptimize(endPoint)}
+                />
             )}
 
              {/* Exit/Clear Button (Only show if we have results and no overlay is up) */}
-            {(ghostNodes.length > 0 || active) && !loading && !notification && (
-                <>
-                    {/* Clear Button */}
-                    <div style={{
-                        position: 'absolute', top: 100, left: '50%', transform: 'translateX(-50%)', zIndex: 1000,
-                    }}>
-                         <button onClick={reset} style={{ 
-                             padding: '8px 24px', 
-                             background: 'rgba(0,0,0,0.6)', 
-                             color: '#fff', 
-                             border: '1px solid rgba(255,255,255,0.2)', 
-                             borderRadius: '20px', 
-                             cursor: 'pointer',
-                             backdropFilter: 'blur(4px)',
-                             fontSize: '0.9em',
-                             transition: 'all 0.2s ease',
-                         }}
-                         onMouseOver={(e) => e.target.style.background = 'rgba(0,0,0,0.8)'}
-                         onMouseOut={(e) => e.target.style.background = 'rgba(0,0,0,0.6)'}
-                         >
-                            Clear Optimization
-                         </button>
-                    </div>
-                </>
-            )}
+
         </>
     );
 };

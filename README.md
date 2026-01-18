@@ -23,6 +23,8 @@ A professional-grade RF propagation and link analysis tool designed for LoRa Mes
 ### ⚡ Batch Operations
 
 - **Bulk Link Matrix**: Import a simple CSV of nodes (`Name, Lat, Lon`) and instantly compute link budgets for every possible pair.
+- **Intuitive UX**: Persistent TX/RX badges on the map and smart 3rd-click reset for rapid link evaluation.
+- **Minimize & Scroll**: Collapsible panel with localized scroll handling to handle large datasets without map interference.
 - **Automated Reporting**: Export detailed CSV reports containing RSSI, Signal Margin, and Clearance values for hundreds of potential links.
 
 ### 🛠️ Hardware Simulation
@@ -31,11 +33,11 @@ A professional-grade RF propagation and link analysis tool designed for LoRa Mes
 - **Radio Config**: Adjust Spreading Factor (SF), Bandwidth (BW), and Coding Rate (CR) to simulate real-world LoRa modulation (LongFast, ShortFast).
 - **Antenna Modeling**: Select standard antennas (Stubby, Dipole, Yagi) or input custom gain figures.
 
-### 🔭 Viewshed Analysis
+### 🔭 Viewshed Analysis (🚧 Under Maintenance)
 
 - **WebGL-Powered Visualization**: Real-time viewshed overlay showing visible terrain from observer point.
 - **Terrain-RGB Support**: Decodes standard Terrain-RGB tiles for efficient client-side rendering.
-- **Red/Green Overlay**: Visual indication of obstructed (red) vs. visible (green) terrain areas.
+- **Note**: This feature is currently disabled while backend tile-server dependencies are being updated.
 
 ### 🎨 Modern Experience
 

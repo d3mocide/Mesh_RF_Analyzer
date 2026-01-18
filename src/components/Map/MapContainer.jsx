@@ -11,6 +11,7 @@ import * as turf from '@turf/turf';
 import DeckGLOverlay from './DeckGLOverlay';
 import WasmViewshedLayer from './WasmViewshedLayer';
 import { useViewshedTool } from '../../hooks/useViewshedTool';
+import BatchNodesPanel from './BatchNodesPanel';
 
 // Fix for default marker icon issues in React Leaflet
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -25,7 +26,7 @@ let DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
-import { useMapEvents } from 'react-leaflet';
+import { useMapEvents, useMap } from 'react-leaflet';
 
 const ViewshedClickHandler = ({ active, runAnalysis, setObserver }) => {
     useMapEvents({
@@ -45,6 +46,17 @@ const ViewshedClickHandler = ({ active, runAnalysis, setObserver }) => {
     return null;
 };
 
+// Wrapper component to access map instance for BatchNodesPanel
+const BatchNodesPanelWrapper = ({ nodes, selectedNodes, onClear, onNodeSelect }) => {
+  const map = useMap();
+  
+  const handleCenter = (node) => {
+    map.flyTo([node.lat, node.lng], 15, { duration: 1.5 });
+  };
+  
+  return <BatchNodesPanel nodes={nodes} selectedNodes={selectedNodes} onCenter={handleCenter} onClear={onClear} onNodeSelect={onNodeSelect} />;
+};
+
 const MapComponent = () => {
   // Default Map Center (Portland, OR)
   const defaultLat = parseFloat(import.meta.env.VITE_MAP_LAT) || 45.5152;
@@ -57,12 +69,13 @@ const MapComponent = () => {
   const [coverageOverlay, setCoverageOverlay] = useState(null); // { url, bounds }
   const [toolMode, setToolMode] = useState('link'); // 'link', 'optimize', 'viewshed', 'none'
   const [viewshedObserver, setViewshedObserver] = useState(null); // Single Point for Viewshed Tool
+  const [selectedBatchNodes, setSelectedBatchNodes] = useState([]); // Track selected batch nodes for linking: [{ id, role: 'TX' | 'RX' }]
   
   // Wasm Viewshed Tool Hook
   const { runAnalysis, resultLayer, isCalculating } = useViewshedTool(toolMode === 'viewshed');
   
   // Calculate Budget at container level for Panel
-  const { txPower, antennaGain, freq, sf, bw, cableLoss, units, mapStyle, batchNodes } = useRF();
+  const { txPower, antennaGain, freq, sf, bw, cableLoss, units, mapStyle, batchNodes, showBatchPanel, setShowBatchPanel, setBatchNodes } = useRF();
   
   // Map Configs
   const MAP_STYLES = {
@@ -108,6 +121,15 @@ const MapComponent = () => {
           sf, bw
       });
   }
+
+  // Helper to reset all tool states (Clear View)
+  const resetToolState = () => {
+      setNodes([]); 
+      setLinkStats({ minClearance: 0, isObstructed: false, loading: false });
+      setCoverageOverlay(null);
+      setViewshedObserver(null);
+      setSelectedBatchNodes([]); // Clear batch node selections
+  };
 
   // Prepare DeckGL Layers
   const deckLayers = [];
@@ -207,6 +229,98 @@ const MapComponent = () => {
             </Marker>
         )}
         <OptimizationLayer active={toolMode === 'optimize'} setActive={(active) => setToolMode(active ? 'optimize' : 'none')} />
+        
+        {/* Batch Nodes Rendering */}
+        {batchNodes.length > 0 && batchNodes.map((node) => {
+            // Check if this node is selected
+            const selection = selectedBatchNodes.find(s => s.id === node.id);
+            const isSelected = !!selection;
+            const role = selection?.role;
+            
+            // Determine styling based on selection
+            let className = 'batch-node-icon';
+            let bgColor = '#00f2ff';
+            let boxShadow = '0 0 8px rgba(0, 242, 255, 0.6)';
+            
+            if (isSelected) {
+                if (role === 'TX') {
+                    // Don't add animation class - it causes ghost elements
+                    bgColor = '#00ff41';
+                    boxShadow = '0 0 12px rgba(0, 255, 65, 0.8)';
+                } else if (role === 'RX') {
+                    // Don't add animation class - it causes ghost elements
+                    bgColor = '#ff0000';
+                    boxShadow = '0 0 12px rgba(255, 0, 0, 0.8)';
+                }
+            }
+            
+            return (
+                <Marker 
+                    key={`batch-${node.id}`} 
+                    position={[node.lat, node.lng]} 
+                    icon={L.divIcon({
+                        className: className,
+                        html: `<div style="background-color: ${bgColor}; width: 12px; height: 12px; border-radius: 50%; opacity: 0.9; border: 2px solid white; box-shadow: ${boxShadow};"></div>`,
+                        iconSize: [12, 12],
+                        iconAnchor: [6, 6]
+                    })}
+                    eventHandlers={{
+                        click: () => {
+                            if (toolMode === 'link') {
+                                // Handle selection logic
+                                if (selectedBatchNodes.length === 0) {
+                                    // First selection - TX
+                                    setSelectedBatchNodes([{ id: node.id, role: 'TX' }]);
+                                    setNodes([{ lat: node.lat, lng: node.lng }]);
+                                } else if (selectedBatchNodes.length === 1) {
+                                    // Second selection - RX, create link
+                                    setSelectedBatchNodes([...selectedBatchNodes, { id: node.id, role: 'RX' }]);
+                                    setNodes([...nodes, { lat: node.lat, lng: node.lng }]);
+                                } else if (selectedBatchNodes.length === 2) {
+                                    // Third click - restart selection process
+                                    setSelectedBatchNodes([{ id: node.id, role: 'TX' }]);
+                                    setNodes([{ lat: node.lat, lng: node.lng }]);
+                                }
+                            }
+                        }
+                    }}
+                >
+                    <Popup>{node.name}</Popup>
+                </Marker>
+            );
+        })}
+        
+        {/* Batch Nodes Panel - Must be inside MapContainer to use useMap hook */}
+        {showBatchPanel && batchNodes.length > 0 && (
+            <BatchNodesPanelWrapper 
+                nodes={batchNodes}
+                selectedNodes={selectedBatchNodes}
+                onClear={() => {
+                    setBatchNodes([]);
+                    setShowBatchPanel(false);
+                    setSelectedBatchNodes([]); // Clear selections when clearing all nodes
+                }}
+                onNodeSelect={(node) => {
+
+                    // Only allow selection in link mode
+                    if (toolMode === 'link') {
+                        if (selectedBatchNodes.length === 0) {
+                            // First selection - TX
+                            setSelectedBatchNodes([{ id: node.id, role: 'TX' }]);
+                            setNodes([{ lat: node.lat, lng: node.lng }]);
+                        } else if (selectedBatchNodes.length === 1) {
+                            // Second selection - RX, create link
+                            setSelectedBatchNodes([...selectedBatchNodes, { id: node.id, role: 'RX' }]);
+                            setNodes([...nodes, { lat: node.lat, lng: node.lng }]);
+                        } else if (selectedBatchNodes.length === 2) {
+                            // Third click - restart selection process
+                            setSelectedBatchNodes([{ id: node.id, role: 'TX' }]);
+                            setNodes([{ lat: node.lat, lng: node.lng }]);
+                        }
+                    }
+                }}
+            />
+        )}
       </MapContainer>
 
       {/* Tool Toggles */}
@@ -214,13 +328,10 @@ const MapComponent = () => {
           <button 
             onClick={() => {
                 if (toolMode === 'link') {
-                    // Toggling OFF
+                    resetToolState();
                     setToolMode('none');
-                    setNodes([]);
-                    setLinkStats({ minClearance: 0, isObstructed: false, loading: false });
-                    setCoverageOverlay(null);
                 } else {
-                    // Toggling ON
+                    resetToolState();
                     setToolMode('link');
                 }
             }}
@@ -239,7 +350,15 @@ const MapComponent = () => {
           </button>
 
           <button 
-            onClick={() => setToolMode(toolMode === 'optimize' ? 'none' : 'optimize')}
+            onClick={() => {
+                if(toolMode === 'optimize') {
+                    resetToolState();
+                    setToolMode('none');
+                } else {
+                    resetToolState();
+                    setToolMode('optimize');
+                }
+            }}
             style={{
                 background: toolMode === 'optimize' ? '#00f2ff' : '#222',
                 color: toolMode === 'optimize' ? '#000' : '#fff',
@@ -251,7 +370,7 @@ const MapComponent = () => {
                 boxShadow: '0 2px 5px rgba(0,0,0,0.5)'
             }}
           >
-            {toolMode === 'optimize' ? 'Cancel Find' : 'Find Ideal Spot'}
+            {toolMode === 'optimize' ? 'Cancel Scan' : 'Elevation Scan'}
           </button>
 
 
@@ -259,13 +378,15 @@ const MapComponent = () => {
           <button 
             onClick={() => {
                 if(toolMode === 'viewshed') {
+                    resetToolState();
                     setToolMode('none');
-                    setViewshedObserver(null);
                 } else {
+                    resetToolState();
                     setToolMode('viewshed');
                 }
             }}
             style={{
+                display: 'none', // Hidden - requires backend server at localhost:5001
                 background: toolMode === 'viewshed' ? '#22ff00' : '#222',
                 color: toolMode === 'viewshed' ? '#000' : '#fff',
                 border: '1px solid #444',
@@ -279,6 +400,36 @@ const MapComponent = () => {
             Viewshed
           </button>
       </div>
+      
+      {/* Clear Link Button - Shows when link nodes exist */}
+      {nodes.length > 0 && (
+          <div style={{ position: 'absolute', top: 65, left: 70, zIndex: 1000 }}>
+              <button 
+                  onClick={() => {
+                      setNodes([]);
+                      setLinkStats({ minClearance: 0, isObstructed: false, loading: false });
+                      setCoverageOverlay(null);
+                      setSelectedBatchNodes([]); // Clear batch node selections
+                  }}
+                  style={{
+                      background: 'rgba(255, 50, 50, 0.9)',
+                      color: '#fff',
+                      border: '1px solid rgba(255, 100, 100, 0.5)',
+                      padding: '6px 12px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '0.85em',
+                      fontWeight: 600,
+                      boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
+                      transition: 'all 0.2s ease'
+                  }}
+                  onMouseOver={(e) => e.target.style.background = 'rgba(255, 50, 50, 1)'}
+                  onMouseOut={(e) => e.target.style.background = 'rgba(255, 50, 50, 0.9)'}
+              >
+                  Clear Link
+              </button>
+          </div>
+      )}
 
       {/* Overlay Panel */}
       {nodes.length === 2 && (
@@ -291,21 +442,6 @@ const MapComponent = () => {
           />
       )}
       
-      {/* Batch Nodes Rendering */}
-      {batchNodes.length > 0 && batchNodes.map((node) => (
-          <Marker 
-              key={`batch-${node.id}`} 
-              position={[node.lat, node.lng]} 
-              icon={L.divIcon({
-                  className: 'batch-node-icon',
-                  html: `<div style="background-color: #aaa; width: 8px; height: 8px; border-radius: 50%; opacity: 0.7; border: 1px solid #000;"></div>`,
-                  iconSize: [8, 8],
-                  iconAnchor: [4, 4]
-              })}
-          >
-              <Popup>{node.name}</Popup>
-          </Marker>
-      ))}
     </div>
   );
 };

@@ -1,5 +1,31 @@
 # Release Notes
 
+## v1.4 - Batch UX & Interface Refinement
+
+This version focuses on significant UX improvements for the Batch Node tool, enhanced interface controls with panel minimization, and overall system cleanup for a more responsive and professional feel.
+
+### ⚡ Batch Node UX Overhaul
+
+- **Persistent Selections**: TX and RX badges now remain visible on map markers after selection, providing permanent visual context during analysis.
+- **Interactive Link Restart**: Selecting a third node now automatically resets the selection flow, making the new node the TX point—no more manual clearing required between links.
+- **Improved Visual Feedback**: Switched from problematic CSS animations to high-intensity, color-matched glows (Green for TX, Red for RX) to eliminate visual "ghosting" artifacts.
+- **Clear Link Integration**: The "Clear Link" operation now correctly resets all batch selection states, ensuring a clean map workspace.
+
+### 🎨 Interface & Control Improvements
+
+- **Collapsible Panels**: Both the **Batch Nodes** and **Ideal Spots** panels now support minimization to a compact top-bar state, maximizing visible map area.
+- **Map Interaction Shield**: Implemented a robust "scroll-lock" for UI panels. Scrolling through long lists of nodes no longer triggers map zoom.
+- **Long List Support**: Added custom scrollbar support and boundary containers for the Batch Nodes panel to handle large imports (50+ nodes) gracefully.
+- **Centered Notifications**: Success/failure notifications are now correctly centered relative to the visible map area, adjusting dynamically as the sidebar opens and closes.
+
+### 🧹 Stability & Cleanup
+
+- **Feature Pruning**: Removed the non-functional "Simulate Coverage" buttons from node popups and disabled the "Viewshed" tool while backend dependencies are being modernized.
+- **Production Hardening**: Removed 13+ debug logging statements and unused CSS classes to reduce bundle size and improve performance.
+- **Code Sustainability**: Documented complex event handling logic to prevent regression in map-to-UI interaction.
+
+---
+
 ## v1.3 - Reliability & Self-Hosting
 
 This release brings stability to the Viewshed tool, enhances the "Find Ideal Spot" feature, and introduces a complete self-hosting solution for elevation data to eliminate API rate limits.

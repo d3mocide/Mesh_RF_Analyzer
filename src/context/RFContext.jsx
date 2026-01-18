@@ -15,6 +15,7 @@ export const RFProvider = ({ children }) => {
     
     // Batch Processing
     const [batchNodes, setBatchNodes] = useState([]); // Array of {id, name, lat, lng}
+    const [showBatchPanel, setShowBatchPanel] = useState(false);
 
     // Config Values
     const [txPower, setTxPower] = useState(20);
@@ -94,6 +95,8 @@ export const RFProvider = ({ children }) => {
         mapStyle, setMapStyle,
         kFactor, setKFactor,
         clutterHeight, setClutterHeight,
+        showBatchPanel, setShowBatchPanel,
+        setBatchNodes,
         recalcTimestamp, triggerRecalc
     };
 
