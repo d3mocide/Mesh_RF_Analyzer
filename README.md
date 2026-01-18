@@ -2,7 +2,7 @@
 
 A professional-grade RF propagation and link analysis tool designed for LoRa Mesh networks (Meshtastic, Reticulum, Sidewinder). Built with **React**, **Leaflet**, and a high-fidelity **Geodetic Physics Engine**.
 
-![Link Analysis Demo](./public/meshrf-preview-1.5.png.png)
+![Link Analysis Demo](./public/meshrf-preview-1.5.png)
 
 ## ✨ Features
 
