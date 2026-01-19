@@ -28,15 +28,19 @@ jobs:
           - context: ./rf-engine
             image-suffix: "-rf-engine"
             dockerfile: ./rf-engine/Dockerfile
-          - context: ./opentopodata
+          - context: opentopodata
             image-suffix: "-opentopodata"
-            dockerfile: ./opentopodata/docker/Dockerfile
+            dockerfile: opentopodata/docker/Dockerfile
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
+          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+
+      - name: Debug - List Files
+        run: ls -R
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
