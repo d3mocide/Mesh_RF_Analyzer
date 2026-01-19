@@ -37,10 +37,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
-          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
 
-      - name: Debug - List Files
-        run: ls -R
+      - name: Verify Submodules
+        run: |
+          git submodule update --init --recursive
+          ls -R opentopodata
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
