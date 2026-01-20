@@ -1,5 +1,30 @@
 # Release Notes
 
+## v1.6.2 - Visual Sync & Interaction Polish
+
+This patch release focuses on "Quality of Life" improvements for the map interface, ensuring that visual feedback perfectly matches the underlying math and that map interactions feel buttery smooth.
+
+### 🎨 Visual Consistency
+
+- **Model-Synced Map Colors**: The colored link line on the map now respects your selected propagation model (e.g., **Okumura-Hata**).
+  - Previously, the map line would default to "Red/Dashed" if there was a physical obstruction, ignoring the fact that Hata models might predict a strong signal in NLOS conditions.
+  - Now, if Hata says the signal is "Excellent" (Green) or "Marginal" (Orange), the map line matches that status exactly, regardless of line-of-sight.
+- **Granular Color Coding**: Upgraded the map line to support the full 5-tier color system used in the Analysis Panel (Green, Yellow, Solid Orange, Red), giving you distinct visual feedback for "Marginal" but working connections.
+
+### 🖱️ Interaction Improvements
+
+- **Smooth Node Dragging**: Rewrote the drag-and-drop logic to eliminate jitter.
+  - The **Fresnel Zone** (blue polygon) now intelligently hides itself during dragging to maintain high frame rates and reappears instantly when you drop the node.
+  - The **Line of Sight** (white/colored line) updates in real-time without lagging the browser.
+- **Smart "Third Click"**: Clicking the map after placing a link now intuitively clears the old link and starts a new one at that location, streamlining the workflow.
+
+### 🐛 Bug Fixes
+
+- **"Red Dash" Glitch**: Fixed a race condition where dragging a node triggered double calculations, causing the link to sometimes get stuck in an "Obstructed" state even when clear.
+- **React Hook Crash**: Resolved a "Rendered more hooks" crash that could occur when adding nodes rapidly.
+
+---
+
 ## v1.6.1 - Hotfix: Docker Startup
 
 ### 🐛 Bug Fixes

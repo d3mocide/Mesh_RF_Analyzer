@@ -85,3 +85,7 @@
   background: rgba(0, 242, 255, 0.5);
 }
 
+/* Dark Mode Map Filter (Invert Light Map to get Dark with Colors) */
+.dark-mode-tiles {
+  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+}

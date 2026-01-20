@@ -494,8 +494,10 @@ const Sidebar = () => {
                     }}
                  >
                      <option value="dark">Dark Matter</option>
+                     <option value="dark_green">Dark (Parks/Forests)</option>
                      <option value="light">Light Mode</option>
                      <option value="topo">Topography</option>
+                     <option value="topo_dark">Dark Topography</option>
                      <option value="satellite">Satellite</option>
                  </select>
              </div>

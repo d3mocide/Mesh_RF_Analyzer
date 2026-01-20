@@ -3,7 +3,7 @@ import { useMapEvents, Marker, Polyline, Popup, Polygon } from 'react-leaflet';
 import L from 'leaflet';
 import { useRF } from '../../context/RFContext';
 import { DEVICE_PRESETS } from '../../data/presets';
-import { calculateLinkBudget, calculateFresnelRadius, calculateFresnelPolygon, analyzeLinkProfile } from '../../utils/rfMath';
+import { calculateLinkBudget, calculateFresnelRadius, calculateFresnelPolygon, analyzeLinkProfile, calculateOkumuraHata } from '../../utils/rfMath';
 import { fetchElevationPath } from '../../utils/elevation';
 import useThrottledCalculation from '../../hooks/useThrottledCalculation';
 import * as turf from '@turf/turf';
@@ -24,7 +24,7 @@ const rxIcon = L.divIcon({
     iconAnchor: [10, 10]
 });
 
-const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverlay, active = true, locked = false }) => {
+const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverlay, active = true, locked = false, propagationSettings }) => {
     const { 
         txPower: proxyTx, antennaGain: proxyGain, // we ignore proxies for calc
         freq, sf, bw, cableLoss, antennaHeight,
@@ -34,6 +34,12 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
 
     // Refs for Manual Update Mode
     const configRef = useRef({ nodeConfigs, freq, kFactor, clutterHeight });
+
+    // Refs for direct visual manipulation
+    const polylineRef = useRef(null);
+    const fresnelRef = useRef(null);
+    const markerRefA = useRef(null);
+    const markerRefB = useRef(null);
 
     useEffect(() => {
         configRef.current = { nodeConfigs, freq, kFactor, clutterHeight };
@@ -80,7 +86,7 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
             })
             .catch(err => {
                 console.error("Link Analysis Failed", err);
-                setLinkStats(prev => ({ ...prev, loading: false }));
+                setLinkStats(prev => ({ ...prev, loading: false, isObstructed: false, minClearance: 0 }));
             });
     }, []); // Empty deps! Stable function.
 
@@ -93,7 +99,19 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
     useMapEvents({
         click(e) {
             if (!active || locked) return;
-            if (nodes.length >= 2) return; 
+            
+            // 3rd Click Logic: Restart Link
+            if (nodes.length >= 2) {
+                const newNode = { 
+                    lat: e.latlng.lat, 
+                    lng: e.latlng.lng,
+                    locked: false
+                };
+                setNodes([newNode]);
+                setEditMode('A');
+                setLinkStats({ minClearance: 0, isObstructed: false, loading: false }); // Reset stats
+                return;
+            }
 
             const newNode = { 
                 lat: e.latlng.lat, 
@@ -112,26 +130,37 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
         }
     });
 
-    const handleDrag = (index, e) => {
-        const { lat, lng } = e.target.getLatLng();
-        setNodes(prev => {
-            const copy = [...prev];
-            copy[index] = { ...copy[index], lat, lng };
-            return copy;
-        });
-    };
+    // We DO NOT handle 'drag' event to update state continuously. 
+    // This causes re-renders that interrupt the Leaflet drag behavior.
+    // Leaflet manages the drag visual natively. We only sync on dragend.
 
     const handleDragEnd = (index, e) => {
         const { lat, lng } = e.target.getLatLng();
         setNodes(prev => {
             const copy = [...prev];
             copy[index] = { ...copy[index], lat, lng };
-            // Trigger recalculation
-            if (copy.length === 2) {
-                runAnalysis(copy[0], copy[1]);
-            }
+            // Trigger recalculation handled by useEffect
             return copy;
         });
+    };
+
+    // Hybrid Drag Logic: Update visuals via Leaflet API (fast), update State on drop (slow)
+    const handleDragVisual = (index, e) => {
+        // 1. Update Line
+        if (polylineRef.current) {
+            const newPos = e.target.getLatLng();
+            const otherPos = index === 0 ? nodes[1] : nodes[0];
+            
+            if (otherPos) {
+                const points = index === 0 ? [newPos, otherPos] : [otherPos, newPos];
+                polylineRef.current.setLatLngs(points);
+            }
+        }
+
+        // 2. Hide Fresnel Zone (Too expensive to recalc real-time, so we hide it)
+        if (fresnelRef.current) {
+            fresnelRef.current.setStyle({ fillOpacity: 0, opacity: 0 });
+        }
     };
 
     if (nodes.length < 2) {
@@ -144,7 +173,6 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
                         icon={getIcon(idx === 0 ? 'tx' : 'rx', (idx === 0 && editMode === 'A') || (idx === 1 && editMode === 'B'))}
                         draggable={!pos.locked && active && !locked}
                         eventHandlers={{
-                            drag: (e) => handleDrag(idx, e),
                             dragend: (e) => handleDragEnd(idx, e),
                             click: (e) => {
                                 L.DomEvent.stopPropagation(e); // Prevent map click from resetting
@@ -177,6 +205,17 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
     // Calculate Budget using explicit Node A (TX) -> Node B (RX) logic
     const configA = nodeConfigs.A;
     const configB = nodeConfigs.B;
+
+    let pathLossVal = null;
+    if (propagationSettings?.model === 'Hata') {
+          pathLossVal = calculateOkumuraHata(
+              distance, 
+              freq, 
+              configA.antennaHeight, 
+              configB.antennaHeight, 
+              propagationSettings.environment
+            );
+    }
     
     const budget = calculateLinkBudget({
         txPower: configA.txPower, 
@@ -186,18 +225,42 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
         rxLoss: DEVICE_PRESETS[configB.device]?.loss || 0,
         distanceKm: distance, 
         freqMHz: freq,
-        sf, bw
+        sf, bw,
+        pathLossOverride: pathLossVal
     });
 
-    // Determine Color
-    let finalColor = '#00ff41'; // Green default
-    if (linkStats.isObstructed) {
-        finalColor = '#ff0000'; // Obstructed
-    } else if (budget.margin < 0) {
-        finalColor = '#ff0000'; // No Link Budget
-    } else if (budget.margin < 10) {
-        finalColor = '#ffbf00'; // Warning
+    // Determine Color and Style
+    const ignoreObstruction = propagationSettings?.model === 'Hata';
+    
+    // Default to 'Excellent' Green
+    let finalColor = '#00ff41'; 
+    let isBadLink = false;
+
+    // 1. Obstruction Check (Overrides everything if active and not Hata)
+    if (linkStats.isObstructed && !ignoreObstruction) {
+        finalColor = '#ff0000'; 
+        isBadLink = true;
+    } 
+    // 2. Margin-based Coloring (Matches LinkAnalysisPanel.jsx)
+    else {
+        const m = budget.margin;
+        if (m >= 10) {
+            finalColor = '#00ff41'; // Excellent +++
+        } else if (m >= 5) {
+            finalColor = '#00ff41'; // Good ++ (Same green for simplicity, or slightly different?) config uses same
+        } else if (m >= 0) {
+            finalColor = '#eeff00'; // Fair + (Yellow)
+        } else if (m >= -10) {
+            finalColor = '#ffbf00'; // Marginal -+ (Orange)
+            isBadLink = false; // It's marginal, but established. Not "broken".
+        } else {
+            finalColor = '#ff0000'; // No Signal - (Red)
+            isBadLink = true;
+        }
     }
+    
+    // Dash line if it's a "Bad" link (No Signal or Physical Obstruction)
+    const dashStyle = isBadLink ? '10, 10' : null;
 
     const fresnelPolygon = calculateFresnelPolygon(p1, p2, freq);
 
@@ -205,12 +268,13 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
         <>
             {/* Markers and Lines code... */}
             <Marker 
+                ref={markerRefA}
                 position={p1} 
                 icon={getIcon('tx', editMode === 'A')}
                 draggable={!p1.locked && active && !locked}
                 eventHandlers={{
-                    drag: (e) => handleDrag(0, e),
-                    dragend: (e) => handleDragEnd(0, e),
+                    drag: (e) => handleDragVisual(0, e), // Visual only
+                    dragend: (e) => handleDragEnd(0, e), // Commit state
                     click: (e) => {
                         L.DomEvent.stopPropagation(e);
                         setEditMode('A');
@@ -226,12 +290,13 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
                 </Popup>
             </Marker>
             <Marker 
+                ref={markerRefB}
                 position={p2} 
                 icon={getIcon('rx', editMode === 'B')}
                 draggable={!p2.locked && active && !locked}
                 eventHandlers={{
-                    drag: (e) => handleDrag(1, e),
-                    dragend: (e) => handleDragEnd(1, e),
+                    drag: (e) => handleDragVisual(1, e), // Visual only
+                    dragend: (e) => handleDragEnd(1, e), // Commit state
                     click: (e) => {
                          L.DomEvent.stopPropagation(e);
                          setEditMode('B');
@@ -250,16 +315,18 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
             
             {/* Direct Line of Sight */}
             <Polyline 
+                ref={polylineRef}
                 positions={[p1, p2]} 
                 pathOptions={{ 
                     color: finalColor, 
                     weight: 3, 
-                    dashArray: (budget.margin < 0 || linkStats.isObstructed) ? '10, 10' : null 
+                    dashArray: dashStyle 
                 }} 
             />
 
             {/* Fresnel Zone Visualization (Polygon) */}
             <Polygon 
+                ref={fresnelRef}
                 positions={fresnelPolygon}
                 pathOptions={{ 
                     color: '#00f2ff', 

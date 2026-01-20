@@ -70,7 +70,7 @@ export const RFProvider = ({ children }) => {
     
     // Preferences
     const [units, setUnits] = useState('imperial'); // 'metric' or 'imperial'
-    const [mapStyle, setMapStyle] = useState('dark'); // 'dark', 'light', 'topo', 'satellite'
+    const [mapStyle, setMapStyle] = useState('dark_green'); // 'dark', 'light', 'topo', 'satellite'
     
     // Environmental
     const [kFactor, setKFactor] = useState(1.33); // Standard Refraction

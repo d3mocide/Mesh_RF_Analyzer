@@ -91,6 +91,12 @@ const MapComponent = () => {
           url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
       },
+      dark_green: {
+          // Use Light map (Voyager) + CSS Filter to get "Dark with Colors" (Green Parks)
+          url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+          className: 'dark-mode-tiles'
+      },
       light: {
           url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
@@ -98,6 +104,11 @@ const MapComponent = () => {
       topo: {
           url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
           attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community'
+      },
+      topo_dark: {
+          url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+          attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community',
+          className: 'dark-mode-tiles'
       },
       satellite: {
           url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -203,8 +214,10 @@ const MapComponent = () => {
             runAnalysis={runAnalysis}
         />
         <TileLayer
+          key={mapStyle} // Force re-mount on style change to clear classes
           attribution={currentStyle.attribution}
           url={currentStyle.url} 
+          className={currentStyle.className} 
         />
         <DeckGLOverlay layers={deckLayers} />
         
@@ -216,6 +229,7 @@ const MapComponent = () => {
             setCoverageOverlay={setCoverageOverlay}
             active={toolMode === 'link'}
             locked={isLinkLocked}
+            propagationSettings={propagationSettings}
         />
         {coverageOverlay && (
              <ImageOverlay 
