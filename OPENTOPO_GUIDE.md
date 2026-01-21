@@ -37,8 +37,7 @@ meshRF is configured to use the **NED 10m** dataset (high resolution for US) by 
     │       └── n45w123.hgt  <-- Place file here
     ```
 
-**If you would like to download larger datasets to support an entire region I have created a tool for batch processing downloads from USGS**:
-
+**If you would like to download larger datasets to support an entire region we have created a tool for batch processing with guides on batch downloads from USGS**
 [meshRF Datasets Tool](https://github.com/d3mocide/meshRF-datasets-tool)
 
 ## 3. Configuration (config.yaml)
@@ -73,7 +72,7 @@ rf-engine:
     - ELEVATION_DATASET=srtm30m # Change to match your data (srtm30m, srtm90m, ned10m, etc.)
 ```
 
-## 4. Restart
+## 5. Restart
 
 Restart the services to pick up the new data:
 
