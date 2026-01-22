@@ -27,50 +27,58 @@ jobs:
       - name: Detect changed paths
         id: set-matrix
         run: |
-          # Default: build everything for tags and PRs
-          if [[ "${{ github.ref }}" == refs/tags/* ]] || [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            MATRIX='{"include":[
-              {"context":".","image-suffix":"","dockerfile":"Dockerfile","component":"core"},
-              {"context":"./rf-engine","image-suffix":"-rf-engine","dockerfile":"./rf-engine/Dockerfile","component":"rf-engine"},
-              {"context":"opentopodata","image-suffix":"-opentopodata","dockerfile":"opentopodata/docker/Dockerfile","component":"opentopodata"}
-            ]}'
-            echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
-            echo "has-changes=true" >> $GITHUB_OUTPUT
-          else
-            MATRIX='{"include":[]}'
-            HAS_CHANGES=false
+          # Initialize empty matrix
+          MATRIX_INCLUDE="[]"
+          HAS_CHANGES=false
 
-            # Core/root image changes (exclude subdirectories for rf-engine and opentopodata)
+          # Function to add to matrix
+          add_to_matrix() {
+            local context=$1
+            local suffix=$2
+            local dockerfile=$3
+            local component=$4
+            # Use jq to robustly add the object to the array
+            MATRIX_INCLUDE=$(echo "$MATRIX_INCLUDE" | jq -c ". + [{\"context\":\"$context\",\"image-suffix\":\"$suffix\",\"dockerfile\":\"$dockerfile\",\"component\":\"$component\"}]")
+            HAS_CHANGES=true
+          }
+
+          # Check if we should build everything (tags, PRs, or workflow change)
+          FORCE_BUILD=false
+          if [[ "${{ github.ref }}" == refs/tags/* ]] || [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            FORCE_BUILD=true
+          elif git diff --name-only HEAD~1 | grep -q "\.github/workflows/docker-publish\.yml"; then
+            FORCE_BUILD=true
+          fi
+
+          if [ "$FORCE_BUILD" = true ]; then
+            add_to_matrix "." "" "Dockerfile" "core"
+            add_to_matrix "./rf-engine" "-rf-engine" "./rf-engine/Dockerfile" "rf-engine"
+            add_to_matrix "opentopodata" "-opentopodata" "opentopodata/docker/Dockerfile" "opentopodata"
+          else
+            # Core/root image changes
             if git diff --name-only HEAD~1 | grep -E '(Dockerfile|\.go$|\.py$|requirements|package\.json|\.ts$|\.js$)' | grep -qv "rf-engine\|opentopodata"; then
-              MATRIX=$(echo "$MATRIX" | jq '.include += [{"context":".","image-suffix":"","dockerfile":"Dockerfile","component":"core"}]')
-              HAS_CHANGES=true
+              add_to_matrix "." "" "Dockerfile" "core"
             fi
 
             # rf-engine changes
             if git diff --name-only HEAD~1 | grep -q "^rf-engine/"; then
-              MATRIX=$(echo "$MATRIX" | jq '.include += [{"context":"./rf-engine","image-suffix":"-rf-engine","dockerfile":"./rf-engine/Dockerfile","component":"rf-engine"}]')
-              HAS_CHANGES=true
+              add_to_matrix "./rf-engine" "-rf-engine" "./rf-engine/Dockerfile" "rf-engine"
             fi
 
             # opentopodata changes
             if git diff --name-only HEAD~1 | grep -q "^opentopodata/"; then
-              MATRIX=$(echo "$MATRIX" | jq '.include += [{"context":"opentopodata","image-suffix":"-opentopodata","dockerfile":"opentopodata/docker/Dockerfile","component":"opentopodata"}]')
-              HAS_CHANGES=true
+              add_to_matrix "opentopodata" "-opentopodata" "opentopodata/docker/Dockerfile" "opentopodata"
             fi
-
-            # If the workflow itself changed, rebuild everything
-            if git diff --name-only HEAD~1 | grep -q "\.github/workflows/docker-publish\.yml"; then
-              MATRIX='{"include":[
-                {"context":".","image-suffix":"","dockerfile":"Dockerfile","component":"core"},
-                {"context":"./rf-engine","image-suffix":"-rf-engine","dockerfile":"./rf-engine/Dockerfile","component":"rf-engine"},
-                {"context":"opentopodata","image-suffix":"-opentopodata","dockerfile":"opentopodata/docker/Dockerfile","component":"opentopodata"}
-              ]}'
-              HAS_CHANGES=true
-            fi
-
-            echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
-            echo "has-changes=$HAS_CHANGES" >> $GITHUB_OUTPUT
           fi
+
+          # finalize matrix JSON
+          MATRIX=$(echo "{}" | jq -c ".include = $MATRIX_INCLUDE")
+
+          echo "Detected changes: $HAS_CHANGES"
+          echo "Matrix: $MATRIX"
+
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+          echo "has-changes=$HAS_CHANGES" >> $GITHUB_OUTPUT
 
   build:
     needs: detect-changes
