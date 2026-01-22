@@ -103,6 +103,10 @@ jobs:
           git submodule update --init --recursive
           ls -R opentopodata
 
+      - name: Lowercase Image Name
+        run: |
+          echo "IMAGE_NAME=${GITHUB_REPOSITORY,,}" >> ${GITHUB_ENV}
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
