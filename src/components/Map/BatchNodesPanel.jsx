@@ -1,8 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const BatchNodesPanel = ({ nodes, selectedNodes = [], onCenter, onClear, onNodeSelect }) => {
+const BatchNodesPanel = ({ nodes, selectedNodes = [], onCenter, onClear, onNodeSelect, forceMinimized = false }) => {
     const [isMinimized, setIsMinimized] = useState(false);
+
+    // Auto-minimize based on prop (e.g. when result panel opens on mobile)
+    useEffect(() => {
+        if (forceMinimized) {
+            setIsMinimized(true);
+        }
+    }, [forceMinimized]);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const panelRef = useRef(null);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     // Prevent map zoom when scrolling inside the panel
     useEffect(() => {
@@ -22,6 +36,10 @@ const BatchNodesPanel = ({ nodes, selectedNodes = [], onCenter, onClear, onNodeS
 
         panel.addEventListener('wheel', handleWheel, { passive: false });
         
+        // Disable Leaflet propagation
+        L.DomEvent.disableClickPropagation(panel);
+        L.DomEvent.disableScrollPropagation(panel);
+        
         return () => {
             panel.removeEventListener('wheel', handleWheel);
         };
@@ -36,15 +54,16 @@ const BatchNodesPanel = ({ nodes, selectedNodes = [], onCenter, onClear, onNodeS
                 onWheel={(e) => e.stopPropagation()}
                 style={{
                     position: 'absolute',
-                    bottom: '25px',
-                    left: '25px',
+                    top: isMobile ? '125px' : 'auto', // Below toolbar rows
+                    bottom: isMobile ? 'auto' : '25px',
+                    left: '60px',
                     background: 'rgba(10, 10, 15, 0.95)',
                     backdropFilter: 'blur(10px)',
                     border: '1px solid #444',
                     borderRadius: '8px',
                     padding: '12px 16px',
                     color: '#eee',
-                    zIndex: 1000,
+                    zIndex: 1100, // Higher than other panels
                     boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
                     cursor: 'pointer',
                     display: 'flex',
@@ -71,18 +90,20 @@ const BatchNodesPanel = ({ nodes, selectedNodes = [], onCenter, onClear, onNodeS
             onWheel={(e) => e.stopPropagation()}
             style={{
                 position: 'absolute',
-                bottom: '25px',
-                left: '25px',
-                width: '280px',
-                maxHeight: '500px',
-                background: 'rgba(10, 10, 15, 0.95)',
-                backdropFilter: 'blur(10px)',
+                top: isMobile ? '125px' : 'auto', // Move below toolbar rows
+                bottom: isMobile ? 'auto' : '25px',
+                left: '60px',
+                width: isMobile ? 'calc(100% - 100px)' : '280px', // Slightly wider on mobile but not full
+                maxWidth: '320px',
+                maxHeight: isMobile ? '35vh' : '500px', // Shorter on mobile
+                background: 'rgba(10, 10, 15, 0.98)',
+                backdropFilter: 'blur(15px)',
                 border: '1px solid #444',
                 borderRadius: '8px',
                 padding: '16px',
                 color: '#eee',
-                zIndex: 1000, 
-                boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+                zIndex: 1100, 
+                boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
                 display: 'flex',
                 flexDirection: 'column',
             }}>
@@ -133,7 +154,7 @@ const BatchNodesPanel = ({ nodes, selectedNodes = [], onCenter, onClear, onNodeS
             >
                 {nodes.map((node, index) => {
                     // Check if this node is selected
-                    const selection = selectedNodes?.find(s => s.id === node.id);
+                    const selection = selectedNodes?.find(s => s?.id === node.id);
                     const isSelected = !!selection;
                     const role = selection?.role;
                     

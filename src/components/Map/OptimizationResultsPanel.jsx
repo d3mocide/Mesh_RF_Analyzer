@@ -1,91 +1,123 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const OptimizationResultsPanel = ({ results, onClose, onCenter, onReset, onRecalculate }) => {
     const [isMinimized, setIsMinimized] = useState(false);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    React.useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
     
-    // Minimized view
-    if (isMinimized) {
-        return (
-            <div 
-                style={{
-                    position: 'absolute',
-                    top: '25px',
-                    right: '25px',
-                    background: 'rgba(10, 10, 15, 0.95)',
-                    backdropFilter: 'blur(10px)',
-                    border: '1px solid #444',
-                    borderRadius: '8px',
-                    padding: '12px 16px',
-                    color: '#eee',
-                    zIndex: 1000,
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                }}
-                onClick={(e) => {
-                    e.stopPropagation();
-                    setIsMinimized(false);
-                }}
-            >
-                <span style={{ fontSize: '0.9em', fontWeight: 600, color: '#00f2ff' }}>
-                    Top {results.length} Ideal Spots
-                </span>
-                <span style={{ fontSize: '0.8em', color: '#666' }}>▼</span>
-            </div>
-        );
-    }
-    
-    // Fixed position panel for now, standardizing with other panels
+    // Fixed position panel logic
+    const panelStyle = {
+        position: 'absolute',
+        top: isMobile ? 'auto' : '25px',
+        bottom: isMobile ? '0' : 'auto',
+        right: isMobile ? '0' : '25px',
+        left: isMobile ? '0' : 'auto',
+        width: isMobile ? '100%' : '320px',
+        maxHeight: isMobile ? (isMinimized ? '60px' : '85vh') : '600px',
+        background: 'rgba(10, 10, 15, 0.98)',
+        backdropFilter: 'blur(15px)',
+        border: isMobile ? 'none' : '1px solid #444',
+        borderTop: isMobile ? '1px solid #555' : '1px solid #444',
+        borderRadius: isMobile ? '20px 20px 0 0' : '8px',
+        padding: '16px',
+        paddingBottom: isMobile ? '32px' : '16px',
+        color: '#eee',
+        zIndex: 1000, 
+        boxShadow: isMobile ? '0 -8px 32px rgba(0,0,0,0.8)' : '0 8px 32px rgba(0,0,0,0.6)',
+        display: 'flex',
+        flexDirection: 'column',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        overflow: 'hidden'
+    };
     
     return (
-        <div style={{
-            position: 'absolute',
-            top: '25px',
-            right: '25px',
-            width: '320px',
-            maxHeight: '600px',
-            background: 'rgba(10, 10, 15, 0.95)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid #444',
-            borderRadius: '8px',
-            padding: '16px',
-            color: '#eee',
-            zIndex: 1000, 
-            boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
-            display: 'flex',
-            flexDirection: 'column',
-        }}>
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h3 style={{ margin: 0, fontSize: '1.1em', fontWeight: 600, color: '#00f2ff' }}>
-                    Top {results.length} Highest Points
-                </h3>
-                <button 
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setIsMinimized(true);
-                    }}
+        <div style={panelStyle}>
+            {/* Mobile Grab Handle */}
+            {isMobile && (
+                <div 
+                    onClick={() => setIsMinimized(!isMinimized)}
                     style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#666',
+                        padding: '8px 0',
                         cursor: 'pointer',
-                        fontSize: '1em',
-                        padding: '0 4px',
-                        lineHeight: 1
+                        width: '100%',
+                        flexShrink: 0
                     }}
-                    onMouseOver={e => e.target.style.color = '#fff'}
-                    onMouseOut={e => e.target.style.color = '#666'}
-                    title="Minimize"
                 >
-                    ▲
-                </button>
+                    <div style={{
+                        width: '40px',
+                        height: '4px',
+                        background: '#666',
+                        borderRadius: '2px',
+                        margin: '0 auto',
+                    }} />
+                </div>
+            )}
+
+            {/* Header */}
+            <div 
+                onClick={isMobile ? () => setIsMinimized(!isMinimized) : undefined}
+                style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center', 
+                    marginBottom: '16px',
+                    cursor: isMobile ? 'pointer' : 'default',
+                    flexShrink: 0
+                }}
+            >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.1em', fontWeight: 600, color: '#00f2ff' }}>
+                        Top {results.length} Ideal Spots
+                    </h3>
+                    {isMobile && (
+                        <span style={{ 
+                            fontSize: '0.8em', 
+                            color: '#666', 
+                            transform: isMinimized ? 'rotate(0deg)' : 'rotate(180deg)', 
+                            transition: 'transform 0.3s' 
+                        }}>
+                            ▼
+                        </span>
+                    )}
+                </div>
+                {!isMobile && (
+                    <button 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setIsMinimized(!isMinimized);
+                        }}
+                        style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#666',
+                            cursor: 'pointer',
+                            fontSize: '1em',
+                            padding: '0 4px',
+                            lineHeight: 1
+                        }}
+                        onMouseOver={e => e.target.style.color = '#fff'}
+                        onMouseOut={e => e.target.style.color = '#666'}
+                        title={isMinimized ? "Expand" : "Minimize"}
+                    >
+                        {isMinimized ? '▼' : '▲'}
+                    </button>
+                )}
             </div>
 
-            {/* Results List */}
-            <div style={{ overflowY: 'auto', flexGrow: 1, paddingRight: '4px' }}>
+            {/* Results List - Only show if not minimized or on desktop */}
+            <div style={{ 
+                overflowY: 'auto', 
+                flexGrow: 1, 
+                paddingRight: '4px',
+                opacity: (isMobile && isMinimized) ? 0 : 1,
+                pointerEvents: (isMobile && isMinimized) ? 'none' : 'auto',
+                transition: 'opacity 0.2s'
+            }}>
                 {results.map((node, index) => (
                     <div 
                         key={index}
@@ -141,7 +173,17 @@ const OptimizationResultsPanel = ({ results, onClose, onCenter, onReset, onRecal
                 ))}
             </div>
 
-            <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+            <div style={{ 
+                marginTop: '12px', 
+                display: 'flex', 
+                flexDirection: 'column', 
+                gap: '8px', 
+                alignItems: 'center',
+                opacity: (isMobile && isMinimized) ? 0 : 1,
+                pointerEvents: (isMobile && isMinimized) ? 'none' : 'auto',
+                transition: 'opacity 0.2s',
+                flexShrink: 0
+            }}>
                  {/* Recalculate Button */}
                  <button 
                     onClick={onRecalculate}
@@ -194,9 +236,9 @@ const OptimizationResultsPanel = ({ results, onClose, onCenter, onReset, onRecal
                     Clear Results
                  </button>
             
-                <div style={{ fontSize: '0.8em', color: '#666' }}>
+                 <div style={{ fontSize: '0.8em', color: '#666' }}>
                     Click a spot to center map
-                </div>
+                 </div>
             </div>
         </div>
     );

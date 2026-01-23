@@ -10,13 +10,23 @@ import { stitchElevationGrids, transformObserverCoords, calculateStitchedBounds 
 export const useRFCoverageTool = (active) => {
     const [resultLayer, setResultLayer] = useState(null);
     const [isCalculating, setIsCalculating] = useState(false);
+    const resultLayerRef = useRef(null); // Store actual data in ref
+    const [renderVersion, setRenderVersion] = useState(0); // Trigger re-renders
     const wasmModuleRef = useRef(null);
 
     // Initialize Wasm Module
     useEffect(() => {
         let mounted = true;
         
-        createMeshRF().then(Module => {
+        createMeshRF({
+            locateFile: (path) => {
+                if (path.endsWith('.wasm')) {
+                    // Force load from public directory (cache busted if needed)
+                    return `/meshrf.wasm?v=${new Date().getTime()}`;
+                }
+                return path;
+            }
+        }).then(Module => {
             if (mounted) {
                 wasmModuleRef.current = Module;
                 console.log('RF Coverage Wasm Module Loaded');
@@ -112,7 +122,6 @@ export const useRFCoverageTool = (active) => {
             if (validTiles.length === 0) throw new Error("No elevation data loaded");
 
             // 3. Stitch Tiles
-            // Assuming 256x256 tiles -> 768x768 grid
             const stitched = stitchElevationGrids(validTiles, centerTile, 256);
             
             // 4. Transform TX coordinates to Stitched Grid
@@ -150,6 +159,7 @@ export const useRFCoverageTool = (active) => {
                 txCoords.x,
                 txCoords.y,
                 txHeight,
+                rfParams.rxHeight || 5.0, // New: RX Height (Default 5m for better stability)
                 rfParams.freq,
                 rfParams.txPower,
                 rfParams.txGain,
@@ -160,15 +170,12 @@ export const useRFCoverageTool = (active) => {
             );
             console.timeEnd("RF_Coverage_WASM_Execution");
             
-            // 8. Extract Results
+            
+            // 8. Extract Results - IMMEDIATE COPY to prevent WASM memory issues
             const resultArr = new Float32Array(resultVec.size());
             for (let i = 0; i < resultVec.size(); i++) {
                 resultArr[i] = resultVec.get(i);
             }
-            
-            // Cleanup
-            Module._free(ptr);
-            resultVec.delete();
             
             console.log('[RF Coverage] Calculation Complete. Result Size:', resultArr.length);
             
@@ -183,16 +190,33 @@ export const useRFCoverageTool = (active) => {
             }
             console.log(`[RF Coverage] Signal Stats: Min=${minVal.toFixed(1)} dBm, Max=${maxVal.toFixed(1)} dBm, ValidPix=${validCount}`);
             
+            // SIMPLIFIED: Pass raw dBm values directly
+            // Convert to plain Array immediately to preserve data
+            const dataArray = Array.from(resultArr);
+            // Freeze to prevent accidental mutation by React
+            Object.freeze(dataArray);
+            
+            // NOW cleanup WASM (after we've captured all data)
+            Module._free(ptr);
+            resultVec.delete();
+            
             // 9. Store Result with Stitched Bounds
             const bounds = calculateStitchedBounds(centerTile);
             
-            setResultLayer({
-                data: resultArr,
+            // Store in ref (prevents React from clearing the array)
+            resultLayerRef.current = {
+                data: dataArray,  // Plain Array captured before WASM cleanup
                 width: stitched.width,
                 height: stitched.height,
                 bounds: bounds,
                 rfParams: rfParams
-            });
+            };
+            
+            // Also update state for backwards compatibility
+            setResultLayer(resultLayerRef.current);
+            
+            // Trigger re-render
+            setRenderVersion(v => v + 1);
             
         } catch (err) {
             console.error('[RF Coverage] Error:', err);
@@ -210,9 +234,15 @@ export const useRFCoverageTool = (active) => {
 
     const clear = useCallback(() => {
         setResultLayer(null);
+        resultLayerRef.current = null;
     }, []);
 
-    return { runAnalysis, resultLayer, isCalculating, clear };
+    return { 
+        runAnalysis, 
+        resultLayer: resultLayerRef.current || resultLayer, // Return ref value (preserves data!)
+        isCalculating, 
+        clear 
+    };
 };
 
 // Helper: Convert lat/lng to tile coordinates

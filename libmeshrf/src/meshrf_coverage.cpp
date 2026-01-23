@@ -11,6 +11,7 @@ std::vector<float> calculate_rf_coverage(
     int tx_x,
     int tx_y,
     float tx_h_meters,
+    float rx_h_meters,
     float frequency_mhz,
     float tx_power_dbm,
     float tx_gain_dbi,
@@ -77,7 +78,7 @@ std::vector<float> calculate_rf_coverage(
             LinkParameters params;
             params.frequency_mhz = frequency_mhz;
             params.tx_height_m = tx_h_meters;
-            params.rx_height_m = 2.0; // Default RX antenna height (can be parameterized later)
+            params.rx_height_m = rx_h_meters; // Use parameterized RX height
             params.polarization = 1; // Vertical (typical for LoRa)
             params.step_size_m = gsd_meters;
             params.N_0 = 301.0; // Standard atmosphere

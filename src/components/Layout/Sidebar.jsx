@@ -23,24 +23,22 @@ const Sidebar = () => {
         batchNodes, setBatchNodes,
         setShowBatchPanel,
         triggerRecalc,
-        editMode, setEditMode
+        editMode, setEditMode,
+        rxHeight, setRxHeight,
+        toolMode,
+        sidebarIsOpen, setSidebarIsOpen,
+        isMobile
     } = useRF();
 
-    // Responsive & Collapse Logic
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-    const [isOpen, setIsOpen] = useState(window.innerWidth > 768);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
+    // Initial sync
     useEffect(() => {
-        const handleResize = () => {
-            const mobile = window.innerWidth < 768;
-            setIsMobile(mobile);
-            if (mobile && isOpen) setIsOpen(false);
-            if (!mobile && !isOpen) setIsOpen(true);
-        };
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
+        if (isMobile && sidebarIsOpen) setSidebarIsOpen(false);
+    }, [isMobile]); // Add dependency
+
+    const isOpen = sidebarIsOpen;
+    const setIsOpen = setSidebarIsOpen;
 
     const handleTxPowerChange = (e) => {
         setTxPower(Math.min(Number(e.target.value), DEVICE_PRESETS[selectedDevice].tx_power_max));
@@ -96,7 +94,7 @@ const Sidebar = () => {
         title={isOpen ? "Collapse Sidebar" : "Expand Sidebar"}
         style={{
             position: isMobile ? 'fixed' : 'absolute', // Stay with sidebar
-            top: '85px',
+            top: '76px',
             left: isOpen ? '330px' : '15px', // Floating to the right
             zIndex: 2010, // Above sidebar (2000)
             background: 'var(--color-primary)',
@@ -372,6 +370,27 @@ const Sidebar = () => {
             onChange={handleTxPowerChange}
             style={{width: '100%', cursor: 'pointer', accentColor: 'var(--color-primary)'}}
         />
+
+        {/* RX Height Slider - Only for RF Coverage Tool */}
+        {toolMode === 'rf_coverage' && (
+            <div style={{marginTop: 'var(--spacing-md)'}}>
+                <label style={labelStyle} htmlFor="rx-height">
+                    Receiver Height: {units === 'imperial' ? `${(rxHeight * 3.28084).toFixed(0)} ft` : `${rxHeight} m`}
+                    <span style={{color: 'var(--color-text-muted)', marginLeft: '8px', fontSize: '0.8em'}}>
+                        ({rxHeight <= 2 ? 'Handheld' : rxHeight <= 5 ? 'Vehicle' : 'Mast'})
+                    </span>
+                </label>
+                <input 
+                    id="rx-height"
+                    name="rx-height"
+                    type="range" 
+                    min="1" max="30" steps="1"
+                    value={rxHeight} 
+                    onChange={(e) => setRxHeight(Number(e.target.value))}
+                    style={{width: '100%', cursor: 'pointer', accentColor: 'var(--color-secondary)'}} 
+                />
+            </div>
+        )}
 
         {/* ERP CALCULATION DISPLAY */}
         <div style={{

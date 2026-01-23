@@ -25,7 +25,7 @@ const rxIcon = L.divIcon({
     iconAnchor: [10, 10]
 });
 
-const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverlay, active = true, locked = false, propagationSettings }) => {
+const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverlay, active = true, locked = false, propagationSettings, onManualClick }) => {
     const { 
         txPower: proxyTx, antennaGain: proxyGain, // we ignore proxies for calc
         freq, sf, bw, cableLoss, antennaHeight,
@@ -101,6 +101,12 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
         click(e) {
             if (!active || locked) return;
             
+            // Notify parent about manual click to manage batch node highlights
+            if (onManualClick) {
+                onManualClick(e);
+                return;
+            }
+
             // 3rd Click Logic: Restart Link
             if (nodes.length >= 2) {
                 const newNode = { 
@@ -167,29 +173,34 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
     if (nodes.length < 2) {
         return (
             <>
-                {nodes.map((pos, idx) => (
-                    <Marker 
-                        key={idx} 
-                        position={pos} 
-                        icon={getIcon(idx === 0 ? 'tx' : 'rx', (idx === 0 && editMode === 'A') || (idx === 1 && editMode === 'B'))}
-                        draggable={!pos.locked && active && !locked}
-                        eventHandlers={{
-                            dragend: (e) => handleDragEnd(idx, e),
-                            click: (e) => {
-                                L.DomEvent.stopPropagation(e); // Prevent map click from resetting
-                                setEditMode(idx === 0 ? 'A' : 'B');
-                            }
-                        }}
-                     >
-                         <Popup>
-                             <div><strong>{idx === 0 ? "TX (Point A)" : "RX (Point B)"}</strong></div>
-                             {(pos.locked || locked) && <div><small>(Locked)</small></div>}
-                             <div style={{marginTop: '4px', fontSize: '0.9em', color: '#888'}}>
-                                 {((idx === 0 && editMode === 'A') || (idx === 1 && editMode === 'B')) ? "(Editing)" : "Click to Edit"}
-                             </div>
-                         </Popup>
-                    </Marker>
-                ))}
+                {nodes.map((pos, idx) => {
+                    // Suppress LinkLayer marker if it's already rendered by the BatchNodes system
+                    if (pos.isBatch) return null;
+
+                    return (
+                        <Marker 
+                            key={idx} 
+                            position={pos} 
+                            icon={getIcon(idx === 0 ? 'tx' : 'rx', (idx === 0 && editMode === 'A') || (idx === 1 && editMode === 'B'))}
+                            draggable={!pos.locked && active && !locked}
+                            eventHandlers={{
+                                dragend: (e) => handleDragEnd(idx, e),
+                                click: (e) => {
+                                    L.DomEvent.stopPropagation(e); // Prevent map click from resetting
+                                    setEditMode(idx === 0 ? 'A' : 'B');
+                                }
+                            }}
+                        >
+                            <Popup>
+                                <div><strong>{idx === 0 ? "TX (Point A)" : "RX (Point B)"}</strong></div>
+                                {(pos.locked || locked) && <div><small>(Locked)</small></div>}
+                                <div style={{marginTop: '4px', fontSize: '0.9em', color: '#888'}}>
+                                    {((idx === 0 && editMode === 'A') || (idx === 1 && editMode === 'B')) ? "(Editing)" : "Click to Edit"}
+                                </div>
+                            </Popup>
+                        </Marker>
+                    );
+                })}
             </>
         );
     }
@@ -280,50 +291,54 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
     return (
         <>
             {/* Markers and Lines code... */}
-            <Marker 
-                ref={markerRefA}
-                position={p1} 
-                icon={getIcon('tx', editMode === 'A')}
-                draggable={!p1.locked && active && !locked}
-                eventHandlers={{
-                    drag: (e) => handleDragVisual(0, e), // Visual only
-                    dragend: (e) => handleDragEnd(0, e), // Commit state
-                    click: (e) => {
-                        L.DomEvent.stopPropagation(e);
-                        setEditMode('A');
-                    }
-                }}
-            >
-                <Popup>
-                    <div><strong>TX (Point A)</strong></div>
-                    {(p1.locked || locked) && <div><small>(Locked)</small></div>}
-                    <div style={{marginTop: '4px', fontSize: '0.9em', color: '#888'}}>
-                        {editMode === 'A' ? "(Editing)" : "Click to Edit"}
-                    </div>
-                </Popup>
-            </Marker>
-            <Marker 
-                ref={markerRefB}
-                position={p2} 
-                icon={getIcon('rx', editMode === 'B')}
-                draggable={!p2.locked && active && !locked}
-                eventHandlers={{
-                    drag: (e) => handleDragVisual(1, e), // Visual only
-                    dragend: (e) => handleDragEnd(1, e), // Commit state
-                    click: (e) => {
-                         L.DomEvent.stopPropagation(e);
-                         setEditMode('B');
-                    }
-                }}
-            >
-                <Popup>
-                    <div><strong>RX (Point B)</strong></div>
-                    {(p2.locked || locked) && <div><small>(Locked)</small></div>}
-                    <div style={{marginTop: '4px', fontSize: '0.9em', color: '#888'}}>
-                        {editMode === 'B' ? "(Editing)" : "Click to Edit"}
-                    </div>
-                </Popup>
-            </Marker>
+            {!p1.isBatch && (
+                <Marker 
+                    ref={markerRefA}
+                    position={p1} 
+                    icon={getIcon('tx', editMode === 'A')}
+                    draggable={!p1.locked && active && !locked}
+                    eventHandlers={{
+                        drag: (e) => handleDragVisual(0, e), // Visual only
+                        dragend: (e) => handleDragEnd(0, e), // Commit state
+                        click: (e) => {
+                            L.DomEvent.stopPropagation(e);
+                            setEditMode('A');
+                        }
+                    }}
+                >
+                    <Popup>
+                        <div><strong>TX (Point A)</strong></div>
+                        {(p1.locked || locked) && <div><small>(Locked)</small></div>}
+                        <div style={{marginTop: '4px', fontSize: '0.9em', color: '#888'}}>
+                            {editMode === 'A' ? "(Editing)" : "Click to Edit"}
+                        </div>
+                    </Popup>
+                </Marker>
+            )}
+            {!p2.isBatch && (
+                <Marker 
+                    ref={markerRefB}
+                    position={p2} 
+                    icon={getIcon('rx', editMode === 'B')}
+                    draggable={!p2.locked && active && !locked}
+                    eventHandlers={{
+                        drag: (e) => handleDragVisual(1, e), // Visual only
+                        dragend: (e) => handleDragEnd(1, e), // Commit state
+                        click: (e) => {
+                            L.DomEvent.stopPropagation(e);
+                            setEditMode('B');
+                        }
+                    }}
+                >
+                    <Popup>
+                        <div><strong>RX (Point B)</strong></div>
+                        {(p2.locked || locked) && <div><small>(Locked)</small></div>}
+                        <div style={{marginTop: '4px', fontSize: '0.9em', color: '#888'}}>
+                            {editMode === 'B' ? "(Editing)" : "Click to Edit"}
+                        </div>
+                    </Popup>
+                </Marker>
+            )}
 
             
             {/* Direct Line of Sight */}
@@ -366,6 +381,7 @@ LinkLayer.propTypes = {
     setCoverageOverlay: PropTypes.func,
     active: PropTypes.bool,
     locked: PropTypes.bool,
+    onManualClick: PropTypes.func,
     propagationSettings: PropTypes.shape({
         model: PropTypes.string,
         environment: PropTypes.string

@@ -125,8 +125,10 @@ const OptimizationLayer = ({ active, setActive }) => {
             {/* Instruction Panel */}
             {active && !ghostNodes.length && (
                 <div style={{
-                    position: 'absolute', top: 25, left: '50%', transform: 'translateX(-50%)',
-                    background: 'rgba(0,0,0,0.8)', color: 'white', padding: '10px', borderRadius: '8px', zIndex: 1000
+                    position: 'absolute', top: 85, left: '50%', transform: 'translateX(-50%)',
+                    background: 'rgba(0,0,0,0.8)', color: 'white', padding: '10px 16px', borderRadius: '8px', zIndex: 1000,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.1)',
+                    pointerEvents: 'none', whiteSpace: 'nowrap'
                 }}>
                     {!startPoint ? "Click to set first corner" : "Click to set opposite corner"}
                 </div>

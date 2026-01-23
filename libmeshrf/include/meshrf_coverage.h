@@ -29,6 +29,7 @@ std::vector<float> calculate_rf_coverage(
     int tx_x,
     int tx_y,
     float tx_h_meters,
+    float rx_h_meters,
     float frequency_mhz,
     float tx_power_dbm,
     float tx_gain_dbi,

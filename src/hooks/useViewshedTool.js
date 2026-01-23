@@ -62,6 +62,14 @@ export function useViewshedTool(active) {
             }
         };
     }, []);
+
+    // Clear state when tool is deactivated
+    useEffect(() => {
+        if (!active) {
+            setResultLayer(null);
+            setError(null);
+        }
+    }, [active]);
     
     const currentBoundsRef = useRef(null);
     

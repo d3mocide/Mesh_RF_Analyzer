@@ -78,9 +78,28 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
     }
 
     // Responsive Chart Logic
-    const [panelSize, setPanelSize] = React.useState({ width: 340, height: 520 });
+    const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
+    const [panelSize, setPanelSize] = React.useState({ 
+        width: isMobile ? window.innerWidth : 340, 
+        height: isMobile ? 480 : 520 
+    });
+
+    React.useEffect(() => {
+        const handleResize = () => {
+            const mobile = window.innerWidth < 768;
+            setIsMobile(mobile);
+            if (mobile) {
+                setPanelSize({ width: window.innerWidth, height: 480 });
+            }
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     const panelRef = React.useRef(null);
     const draggingRef = React.useRef(false);
+    const [isResizing, setIsResizing] = React.useState(false); // Used to disable transition during drag
+    const [isMinimized, setIsMinimized] = React.useState(false);
     const lastPosRef = React.useRef({ x: 0, y: 0 });
 
     // Calculate Dimensions directly (Derived State)
@@ -97,6 +116,7 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
     // Resize Handler
     const handleMouseDown = (e) => {
         draggingRef.current = true;
+        setIsResizing(true);
         lastPosRef.current = { x: e.clientX, y: e.clientY };
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
@@ -124,6 +144,7 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
 
     const handleMouseUp = () => {
         draggingRef.current = false;
+        setIsResizing(false);
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
     };
@@ -131,56 +152,122 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
     return (
         <div ref={panelRef} style={{
             position: 'absolute',
-            top: '20px',
-            right: '20px',
-            width: `${panelSize.width}px`,
-            height: `${panelSize.height}px`,
-            background: 'rgba(10, 10, 15, 0.95)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid #444',
-            borderRadius: '8px',
+            top: isMobile ? 'auto' : '20px',
+            bottom: isMobile ? '0' : 'auto',
+            right: isMobile ? '0' : '20px',
+            left: isMobile ? '0' : 'auto',
+            width: isMobile ? '100%' : `${panelSize.width}px`,
+            height: isMobile ? 'auto' : `${panelSize.height}px`,
+            maxHeight: isMobile ? (isMinimized ? '72px' : '85vh') : 'none',
+            background: 'rgba(10, 10, 15, 0.98)',
+            backdropFilter: 'blur(15px)',
+            border: isMobile ? 'none' : '1px solid #444',
+            borderTop: isMobile ? '1px solid #555' : '1px solid #444',
+            borderRadius: isMobile ? '20px 20px 0 0' : '8px',
             padding: '16px',
+            paddingBottom: isMobile ? '32px' : '16px', // Extra padding for mobile gestures
             color: '#eee',
             zIndex: 1000, 
-            boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+            boxShadow: '0 -8px 32px rgba(0,0,0,0.8)',
             display: 'flex',
             flexDirection: 'column',
-            // Custom resize, remove CSS resize
-            overflow: 'hidden' 
+            overflowY: isMobile ? 'auto' : 'hidden',
+            overflowX: 'hidden',
+            transition: isResizing ? 'none' : 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
         }}>
-            {/* Custom Bottom-Left Resize Handle */}
-            <div 
-                onMouseDown={handleMouseDown}
-                style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    width: '24px',
-                    height: '24px',
-                    cursor: 'sw-resize',
-                    zIndex: 1001,
-                    // Light background for "tab" feel + distinct grip lines
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    backgroundImage: `repeating-linear-gradient(
-                        45deg,
-                        transparent,
-                        transparent 4px,
-                        rgba(255, 255, 255, 0.5) 4px,
-                        rgba(255, 255, 255, 0.5) 5px
-                    )`,
-                    // Triangle shape
-                    clipPath: 'polygon(0 100%, 100% 100%, 0 0)',
-                    borderBottomLeftRadius: '8px',
-                    transition: 'background-color 0.2s'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'}
-                title="Resize Panel"
-            ></div>
+            {/* Mobile Grab Handle & Clickable Header Area */}
+            {isMobile && (
+                <div 
+                    onClick={() => setIsMinimized(!isMinimized)}
+                    style={{
+                        padding: '12px 0 8px 0',
+                        cursor: 'pointer',
+                        width: '100%',
+                        flexShrink: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '8px'
+                    }}
+                    title={isMinimized ? "Expand" : "Minimize"}
+                >
+                    <div style={{
+                        width: '36px',
+                        height: '4px',
+                        background: 'rgba(255, 255, 255, 0.2)',
+                        borderRadius: '2px',
+                    }} />
+                    
+                    {isMinimized && (
+                        <div style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '12px',
+                            animation: 'fadeIn 0.3s ease-out'
+                        }}>
+                             <span style={{ fontSize: '0.85em', fontWeight: 700, color: statusColor }}>
+                                {statusText}
+                            </span>
+                            <span style={{ fontSize: '0.85em', color: '#888' }}>|</span>
+                            <span style={{ fontSize: '0.9em', fontWeight: 600 }}>
+                                {margin} dB Margin
+                            </span>
+                        </div>
+                    )}
+                </div>
+            )}
+            {/* Custom Bottom-Left Resize Handle - Only on Desktop */}
+            {!isMobile && (
+                <div 
+                    onMouseDown={handleMouseDown}
+                    style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        width: '24px',
+                        height: '24px',
+                        cursor: 'sw-resize',
+                        zIndex: 1001,
+                        // Light background for "tab" feel + distinct grip lines
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        backgroundImage: `repeating-linear-gradient(
+                            45deg,
+                            transparent,
+                            transparent 4px,
+                            rgba(255, 255, 255, 0.5) 4px,
+                            rgba(255, 255, 255, 0.5) 5px
+                        )`,
+                        // Triangle shape
+                        clipPath: 'polygon(0 100%, 100% 100%, 0 0)',
+                        borderBottomLeftRadius: '8px',
+                        transition: 'background-color 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'}
+                    title="Resize Panel"
+                ></div>
+            )}
 
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <h3 style={{ margin: 0, fontSize: '1.1em', fontWeight: 600 }}>Link Analysis</h3>
+            {/* Header - Also clickable on mobile to toggle */}
+            <div 
+                onClick={isMobile ? () => setIsMinimized(!isMinimized) : undefined}
+                style={{ 
+                    display: isMinimized && isMobile ? 'none' : 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center', 
+                    marginBottom: '12px',
+                    cursor: isMobile ? 'pointer' : 'default',
+                    flexShrink: 0
+                }}
+            >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.1em', fontWeight: 600 }}>Link Analysis</h3>
+                    {isMobile && (
+                        <span style={{ fontSize: '0.8em', color: '#666', transform: isMinimized ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 0.3s' }}>
+                            ▼
+                        </span>
+                    )}
+                </div>
                 <span style={{ 
                     fontSize: '0.8em', 
                     fontWeight: 800, 

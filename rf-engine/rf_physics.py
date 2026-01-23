@@ -1,6 +1,5 @@
 import numpy as np
 import math
-# tile_manager import removed
 
 # Constants
 EARTH_RADIUS_KM = 6371.0
@@ -60,14 +59,11 @@ def analyze_link(elevs, dist_m, freq_mhz, tx_h, rx_h):
     tx_alt = elevs[0] + tx_h # Height above sea level (no bulge at 0)
     rx_alt = elevs[-1] + rx_h # Height above sea level
     
-    # Linear interpolation of LOS height across the path (ignoring bulge on LOS itself since it's the reference usually?)
-    # Wait, if terrain is bulged, LOS is straight line?
-    # Yes, standard method: Terrain += Bulge, Link = Straight Line.
+    # Linear interpolation of LOS height across the path
     
     los_h = np.linspace(tx_alt, rx_alt, num_points)
     
     # 3. Fresnel Clearance
-    # clearance = los_h - terrain_h
     clearance = los_h - terrain_h
     
     # Fresnel Radius at each point
@@ -104,20 +100,3 @@ def analyze_link(elevs, dist_m, freq_mhz, tx_h, rx_h):
         "path_loss_db": 0.0, # Placeholder for ITM
         "profile": elevs.tolist()  # Return raw profile for debug?
     }
-
-def calculate_itm_loss(dist_m, elevs, freq_mhz, tx_h, rx_h):
-    try:
-        import itmlogic
-        # Placeholder: Check actual ITM API. 
-        # Assuming itmlogic.p2p(dist_km, profile, freq, h1, h2, ...)
-        # Since I cannot verify the API at this exact second without "search_web" deep dive,
-        # I will fall back to a robust simulation or basic models if import fails.
-        # But let's try to simulate calling it.
-        pass
-    except ImportError:
-        pass
-        
-    dist_km = dist_m / 1000
-    if dist_km < 0.001: return 0
-    fspl = 20 * math.log10(dist_km) + 20 * math.log10(freq_mhz) + 32.44
-    return fspl

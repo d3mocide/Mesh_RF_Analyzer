@@ -12,6 +12,18 @@ export const RFProvider = ({ children }) => {
     // GLOBAL: Edit defaults (applies to both if they haven't been overridden? Or just applies to both for now)
     // A/B: Edit specific node
     const [editMode, setEditMode] = useState('GLOBAL'); // 'GLOBAL', 'A', 'B'
+    const [toolMode, setToolMode] = useState('link'); // 'link', 'optimize', 'viewshed', 'rf_coverage', 'none'
+    const [sidebarIsOpen, setSidebarIsOpen] = useState(window.innerWidth > 768);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    useEffect(() => {
+        const handleResize = () => {
+            const mobile = window.innerWidth < 768;
+            setIsMobile(mobile);
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const DEFAULT_CONFIG = {
         device: 'HELTEC_V3',
@@ -85,6 +97,7 @@ export const RFProvider = ({ children }) => {
     // Environmental
     const [kFactor, setKFactor] = useState(1.33); // Standard Refraction
     const [clutterHeight, setClutterHeight] = useState(0); // Forest/Urban Obstruction (m)
+    const [rxHeight, setRxHeight] = useState(2.0); // Receiver Height (m), default 2m (Handheld)
     
     // Signals
     const [recalcTimestamp, setRecalcTimestamp] = useState(0);
@@ -155,6 +168,7 @@ export const RFProvider = ({ children }) => {
     const value = {
         // Mode State
         editMode, setEditMode,
+        toolMode, setToolMode,
         nodeConfigs, 
         
         // Proxied Accessors (UI Compatibility)
@@ -177,12 +191,38 @@ export const RFProvider = ({ children }) => {
         mapStyle, setMapStyle,
         kFactor, setKFactor,
         clutterHeight, setClutterHeight,
+        rxHeight, setRxHeight,
         
         // Batch
         batchNodes, setBatchNodes,
         showBatchPanel, setShowBatchPanel,
         
-        recalcTimestamp, triggerRecalc
+        // UI State
+        sidebarIsOpen, setSidebarIsOpen,
+        isMobile,
+        
+        recalcTimestamp, triggerRecalc,
+        
+        // Helpers
+        getAntennaHeightMeters: () => {
+            return parseFloat(antennaHeight) || 0; // State is always in Meters
+        },
+        calculateSensitivity: () => {
+             // LoRa Sensitivity Estimation
+             // S = -174 + 10log10(BW) + NF + SNR_limit
+             // NF ~ 6dB typically
+             const bwHz = (bw || 125) * 1000;
+             const noiseFloor = -174 + 10 * Math.log10(bwHz);
+             const nf = 6;
+             
+             // SNR Limits approx (Semtech datasheets)
+             const snrLimits = { 
+                 7: -7.5, 8: -10, 9: -12.5, 10: -15, 11: -17.5, 12: -20 
+             };
+             const snrLimit = snrLimits[sf] || -20;
+             
+             return noiseFloor + nf + snrLimit;
+        }
     };
 
     return (

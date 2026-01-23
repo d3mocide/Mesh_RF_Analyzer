@@ -1,5 +1,48 @@
 # Release Notes
 
+## v1.7.2 - Selection Logic & UI Polish
+
+This release unifies the node selection behavior, resolves critical event propagation bugs, and polishes the import notification UI for a more professional experience.
+
+### 📡 Selection Logic & Architecture
+
+- **Unified Selection Flow**: Consolidated map clicks and batch node selections into a single, high-reliability handler.
+- **Predictable Roles**: Selecting a 3rd node now consistently resets the sequence, making the new node the **TX** point.
+- **Double-Selection Prevention**:
+  - Blocked event propagation from UI panels to the map to prevent accidental "double-selection".
+  - Implemented a 100ms temporal guard to ignore rapid-fire duplicate events.
+- **React Performance**: Fixed a "Cannot update a component while rendering another" state warning by refactoring state update sequences.
+
+### 🎨 UI & UX Refinements
+
+- **Centered Notifications**: The "IMPORT SUCCESSFUL" popup is now visually centered over the map area, intelligently adjusting for sidebar state.
+- **Streamlined Feedback**: Removed the redundant "CLOSE" button from the import notification, relying on its auto-dismiss behavior for a zero-click workflow.
+- **Bug Fixes**: Resolved a `ReferenceError` in `BatchProcessing.jsx` related to inconsistent state access.
+
+---
+
+## v1.7.1 - Mobile UX & HUD Refinement
+
+This update focuses on polishing the HUD layout and significantly improving the mobile user experience for multi-step workflows like Batch Node analysis.
+
+### 🎨 HUD Layout & Aesthetics
+
+- **Off-Center Toolbar**: Relocated the main toolbar to `left: 20px` to create a modern, asymmetrical layout.
+- **Action Button Alignment**: Standardized action buttons (Lock, Clear Link, etc.) to `left: 60px`, maintaining clear separation from the sidebar toggle.
+- **Sidebar Toggle Centering**: Vertically aligned the sidebar toggle button with other HUD action elements for a balanced visual center at `top: 76px`.
+- **Global Zoom Standard**: Zoom controls are now consistently located in the `bottom-right` corner across all devices, eliminating toolbar overlap.
+
+### 📱 Mobile UI Enhancements
+
+- **Smart Panel Minimization**:
+  - The **Batch Nodes list** now automatically minimizes when a link is established, maximizing map visibility.
+  - Relocated the minimized Batch Nodes panel to the top-left area to prevent conflict with analysis result sheets.
+- **Link Analysis Summaries**:
+  - Added a compact "Status & Margin" live summary to the minimized header on mobile, allowing users to see results without expanding the full sheet.
+  - Refined the "Grab Handle" and minimized height (`72px`) for a more responsive feel.
+
+---
+
 ## v1.7.0 - Pro RF Coverage & Runtime Config
 
 This major release introduces a powerful new **RF Coverage Tool** with stitched multi-tile analysis and draggable transmitters, alongside significant DevOps improvements for runtime configuration.

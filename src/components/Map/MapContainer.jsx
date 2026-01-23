@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, ImageOverlay, Marker, Popup, Rectangle } from 'react-leaflet';
+import { MapContainer, TileLayer, ImageOverlay, Marker, Popup, Rectangle, ZoomControl } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import LinkLayer from './LinkLayer';
@@ -43,20 +43,25 @@ const CoverageClickHandler = ({ mode, runViewshed, runRFCoverage, setViewshedObs
                     // Run simple viewshed (25km radius)
                     runViewshed(lat, lng, 2.0, 25000);
                 } else if (mode === 'rf_coverage') {
-                    const h = rfContext.antennaHeight || 5.0;
-                    setRfObserver({ lat, lng, height: h });
+                    // Use helper to get height in meters (handling ft conversion)
+                    const h = rfContext.getAntennaHeightMeters ? rfContext.getAntennaHeightMeters() : (rfContext.antennaHeight || 5.0);
+                    
+                    console.log(`[RF Click] Setting Observer: Height=${h.toFixed(2)}m (Raw input: ${rfContext.antennaHeight})`);
+                    setRfObserver({ lat, lng, height: h }); // Store processed height in meters
 
                     const rfParams = {
                         freq: rfContext.freq,
                         txPower: rfContext.txPower,
                         txGain: rfContext.antennaGain,
                         rxGain: 2.15, // Default RX (dipole)
-                        rxSensitivity: -120,
+                        rxSensitivity: rfContext.calculateSensitivity ? rfContext.calculateSensitivity() : -126,
                         bw: rfContext.bw,
                         sf: rfContext.sf,
-                        cr: rfContext.cr
+                        cr: rfContext.cr,
+                        rxHeight: rfContext.rxHeight
                     };
                     
+                    console.log("[RF Click] Running Analysis with Params:", rfParams);
                     runRFCoverage(lat, lng, h, 25000, rfParams);
                 }
             }
@@ -66,14 +71,19 @@ const CoverageClickHandler = ({ mode, runViewshed, runRFCoverage, setViewshedObs
 };
 
 // Wrapper component to access map instance for BatchNodesPanel
-const BatchNodesPanelWrapper = ({ nodes, selectedNodes, onClear, onNodeSelect }) => {
+const BatchNodesPanelWrapper = ({ nodes, selectedNodes, onClear, onNodeSelect, forceMinimized = false }) => {
   const map = useMap();
   
   const handleCenter = (node) => {
     map.flyTo([node.lat, node.lng], 15, { duration: 1.5 });
   };
+
+  const handleNodeSelect = (node) => {
+    handleCenter(node);
+    if (onNodeSelect) onNodeSelect(node);
+  };
   
-  return <BatchNodesPanel nodes={nodes} selectedNodes={selectedNodes} onCenter={handleCenter} onClear={onClear} onNodeSelect={onNodeSelect} />;
+  return <BatchNodesPanel nodes={nodes} selectedNodes={selectedNodes} onCenter={handleCenter} onClear={onClear} onNodeSelect={handleNodeSelect} forceMinimized={forceMinimized} />;
 };
 
 const MapComponent = () => {
@@ -86,17 +96,21 @@ const MapComponent = () => {
   const [nodes, setNodes] = useState([]); 
   const [linkStats, setLinkStats] = useState({ minClearance: 0, isObstructed: false, loading: false });
   const [coverageOverlay, setCoverageOverlay] = useState(null); // { url, bounds }
-  const [toolMode, setToolMode] = useState('link'); // 'link', 'optimize', 'viewshed', 'rf_coverage', 'none'
+  // const [toolMode, setToolMode] = useState('link'); // Lifted to Context
   const [viewshedObserver, setViewshedObserver] = useState(null); // Single Point for Viewshed Tool
   const [rfObserver, setRfObserver] = useState(null); // Single Point for RF Coverage Tool
   const [isLinkLocked, setIsLinkLocked] = useState(false); // Default unlocked
-  const [selectedBatchNodes, setSelectedBatchNodes] = useState([]); // Track selected batch nodes for linking: [{ id, role: 'TX' | 'RX' }]
+  const [selectedBatchNodes, setSelectedBatchNodes] = useState([null, null]); // Track selected batch nodes: [TX_node, RX_node]
   
   // Propagation Model State
   const [propagationSettings, setPropagationSettings] = useState({
       model: 'Hata', // Default to Realistic
       environment: 'urban_small' // Default to Urban
   });
+  const selectionRef = React.useRef(0); // Track last selection time to prevent identical double-clicks
+
+  // Calculate Budget at container level for Panel
+  const { toolMode, setToolMode, txPower: proxyTx, antennaGain: proxyGain, freq, sf, cr, bw, antennaHeight, cableLoss, units, mapStyle, batchNodes, showBatchPanel, setShowBatchPanel, setBatchNodes, setEditMode, nodeConfigs, recalcTimestamp, getAntennaHeightMeters, calculateSensitivity, rxHeight } = useRF();
 
   // Wasm Viewshed Tool Hook
   const { runAnalysis, resultLayer, isCalculating, clear: clearViewshed } = useViewshedTool(toolMode === 'viewshed');
@@ -104,9 +118,8 @@ const MapComponent = () => {
   // RF Coverage Tool Hook
   const { runAnalysis: runRFAnalysis, resultLayer: rfResultLayer, isCalculating: isRFCalculating, clear: clearRFCoverage } = useRFCoverageTool(toolMode === 'rf_coverage');
   
-  // Calculate Budget at container level for Panel
-  const { txPower: proxyTx, antennaGain: proxyGain, freq, sf, cr, bw, antennaHeight, cableLoss, units, mapStyle, batchNodes, showBatchPanel, setShowBatchPanel, setBatchNodes, setEditMode, nodeConfigs, recalcTimestamp } = useRF();
-  
+  // Verify sensitivity or default to a reasonable LoRa value
+  const sensitivity = calculateSensitivity ? calculateSensitivity() : -126; // Default SF7/BW125
   // Map Configs
   const MAP_STYLES = {
       dark: {
@@ -139,16 +152,31 @@ const MapComponent = () => {
   };
 
   const currentStyle = MAP_STYLES[mapStyle] || MAP_STYLES.dark_green;
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+      const handleResize = () => setIsMobile(window.innerWidth < 768);
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Trigger RF Recalculation on Parameter Change (via 'Update Calculation' button)
   useEffect(() => {
       if (recalcTimestamp && toolMode === 'rf_coverage' && rfObserver) {
           const { lat, lng } = rfObserver;
           console.log("Triggering RF Recalculation due to param update");
+          
+          // Recalculate height from current context (in case user changed height/units)
+          const currentHeight = getAntennaHeightMeters ? getAntennaHeightMeters() : rfObserver.height;
+          
+          // Recalculate sensitivity
+          const currentSensitivity = calculateSensitivity ? calculateSensitivity() : -126;
+          
           const rfParams = {
-            freq, txPower: proxyTx, txGain: proxyGain, rxGain: 2.15, rxSensitivity: -120, bw, sf, cr
+            freq, txPower: proxyTx, txGain: proxyGain, rxGain: 2.15, rxSensitivity: currentSensitivity, bw, sf, cr, rxHeight
           };
-          runRFAnalysis(lat, lng, rfObserver.height, 25000, rfParams);
+          console.log(`[RF Recalc] Height: ${currentHeight.toFixed(2)}m, Params:`, rfParams);
+          runRFAnalysis(lat, lng, currentHeight, 25000, rfParams);
       }
   }, [recalcTimestamp]);
 
@@ -202,7 +230,38 @@ const MapComponent = () => {
       setCoverageOverlay(null);
       setViewshedObserver(null);
       setRfObserver(null);
-      setSelectedBatchNodes([]); // Clear batch node selections
+      setSelectedBatchNodes([null, null]); // Reset to initial state
+      setEditMode('GLOBAL'); // Clear node editing state
+  };
+
+  const handleNodeSelect = (node, isBatch = false) => {
+    // Only allow selection in link mode
+    if (toolMode !== 'link' || isLinkLocked) return;
+
+    // Temporal guard: Ignore calls within 100ms (prevents double-activation from event bubbling)
+    const now = Date.now();
+    if (now - selectionRef.current < 100) return;
+    selectionRef.current = now;
+
+    // Use sequential updates (React will batch these)
+    const isNewLink = nodes.length === 0 || nodes.length >= 2;
+    const nodeData = { lat: node.lat, lng: node.lng, isBatch, batchId: isBatch ? node.id : null };
+
+    if (isNewLink) {
+        setNodes([nodeData]);
+        setEditMode('A');
+        setSelectedBatchNodes([
+            isBatch ? { id: node.id, name: node.name, role: 'TX' } : { id: 'manual-tx', role: 'TX' }, 
+            null
+        ]);
+    } else {
+        setNodes(prev => [...prev, nodeData]);
+        setEditMode('B');
+        setSelectedBatchNodes(prev => [
+            prev[0], 
+            isBatch ? { id: node.id, name: node.name, role: 'RX' } : { id: 'manual-rx', role: 'RX' }
+        ]);
+    }
   };
 
   // Prepare DeckGL Layers
@@ -244,78 +303,79 @@ const MapComponent = () => {
   if (toolMode === 'rf_coverage' && rfResultLayer && rfResultLayer.data) {
       const { width, height, data, rfParams, bounds } = rfResultLayer;
       
-      // Store bounds for debug rect
-      const { west, south, east, north } = bounds;
-      rfBounds = [[north, west], [south, east]];
+      console.log(`[MapContainer] Processing ${data.length} pixels for RF visualization`);
+
+      console.log(`[MapContainer] Processing ${data.length} pixels for RF visualization`);
       
-      // Generate Dots (Scatterplot) instead of Bitmap
+      const { west, south, east, north } = bounds;
+      
+      // Generate points for Scatterplot visualization
       const points = [];
-      const stride = 4; // Balanced performance/detail
       
       // Calculate step sizes in degrees
       const latStep = (north - south) / height;
       const lonStep = (east - west) / width;
       
       // Noise floor for SNR calc
-      // BW in Config is kHz (e.g. 62.5) -> convert to Hz
       const bwHz = (rfParams?.bw || 125) * 1000; 
-      // Thermal Noise Floor = -174 + 10 * log10(BW_Hz)
       const noiseFloor = -174 + 10 * Math.log10(bwHz);
       const sensitivity = rfParams?.rxSensitivity || -120;
       
-      for (let y = 0; y < height; y += stride) {
-          for (let x = 0; x < width; x += stride) {
-              const i = y * width + x;
-              const rssi = data[i];
-              
-              // Filter empty/invalid values
-              if (rssi < -500) continue;
-              
-              // Filter below visualization floor (-150 dBm)
-              if (rssi < -150) continue;
+      const NO_DATA = -999.0; 
+      
+      // Iterate ALL pixels
+      for (let i = 0; i < data.length; i++) {
+          const rssi = data[i]; // Raw dBm value
+          
+          let snr = -999;
+          
+          // Separate valid signals from background
+          const isBackground = rssi <= NO_DATA + 1;
+          
+          // Skip background/no-data pixels (User requested to drop the grid)
+          if (isBackground) continue; 
+          
+          snr = rssi - noiseFloor;
 
-              const snr = rssi - noiseFloor;
-              
-              // Calculate Lat/Lon center
-              const pLat = north - (y + 0.5) * latStep;
-              const pLon = west + (x + 0.5) * lonStep;
-              
-              points.push({
-                  position: [pLon, pLat],
-                  rssi,
-                  snr
-              });
-          }
+          // Calculate x, y from index
+          const y = Math.floor(i / width);
+          const x = i % width;
+          
+          // Calculate Lat/Lon
+          const pLat = north - (y + 0.5) * latStep;
+          const pLon = west + (x + 0.5) * lonStep;
+          
+          points.push({
+              position: [pLon, pLat],
+              rssi,
+              snr,
+              isBackground
+          });
       }
       
       deckLayers.push(new ScatterplotLayer({
           id: 'rf-coverage-dots',
           data: points,
           pickable: true,
-          opacity: 0.8,
-          stroked: true,
+          opacity: 0.6,
+          stroked: false,
           filled: true,
           radiusScale: 1,
-          radiusMinPixels: 4,
-          radiusMaxPixels: 10,
-          lineWidthMinPixels: 1,
+          radiusMinPixels: 2,
+          radiusMaxPixels: 6,
           getPosition: d => d.position,
           getFillColor: d => {
-              // Color Scale based on SNR
-              // > 10dB: Green [0, 200, 0]
-              // 0-10dB: Yellow [200, 200, 0]
-              // < 0dB: Red [200, 0, 0]
-              // Below Sensitivity: Grey/Blue [100, 100, 100]
+              if (d.isBackground) return [30, 30, 40, 40]; // Faint dark grid for background
               
-              if (d.rssi < sensitivity) return [50, 50, 80, 150]; // Weak signal
+              // Color based on SNR/RSSI
+              const relativeStrength = d.rssi - sensitivity;
               
-              if (d.snr > 10) return [0, 255, 65];   // Excellent
-              if (d.snr > 5)  return [100, 255, 0];  // Good
-              if (d.snr > 0)  return [255, 200, 0];  // Fair
-              return [255, 50, 50];                  // Poor
-          },
-          getLineColor: [0, 0, 0, 100],
-          // Add tooltip interaction if we wanted
+              if (relativeStrength > 20) return [0, 255, 65, 200];   // Excellent (>20dB margin)
+              if (relativeStrength > 10) return [100, 255, 0, 200];  // Good (>10dB margin)
+              if (relativeStrength > 5)  return [255, 255, 0, 200];  // Fair (>5dB margin)
+              if (relativeStrength > 0)  return [255, 120, 0, 180];  // Marginal (0-5dB margin)
+              return [100, 0, 255, 120];                              // Very Weak (Near floor) - Purple
+          }
       }));
   }
 
@@ -325,14 +385,16 @@ const MapComponent = () => {
         center={position} 
         zoom={13} 
         style={{ height: '100%', width: '100%', background: '#0a0a0f' }}
+        zoomControl={false}
       >
+        <ZoomControl position="bottomright" />
         <CoverageClickHandler 
             mode={toolMode}
             runViewshed={runAnalysis}
             runRFCoverage={runRFAnalysis}
             setViewshedObserver={setViewshedObserver}
             setRfObserver={setRfObserver}
-            rfContext={{ freq, txPower: proxyTx, antennaGain: proxyGain, bw, sf, cr, antennaHeight }}
+            rfContext={{ freq, txPower: proxyTx, antennaGain: proxyGain, bw, sf, cr, antennaHeight, getAntennaHeightMeters, rxHeight }}
         />
         <TileLayer
           key={mapStyle} // Force re-mount on style change to clear classes
@@ -351,6 +413,10 @@ const MapComponent = () => {
             active={toolMode === 'link'}
             locked={isLinkLocked}
             propagationSettings={propagationSettings}
+            onManualClick={(e) => {
+                // When user clicks map manually, we treat it as a non-batch node selection
+                handleNodeSelect({ lat: e.latlng.lat, lng: e.latlng.lng }, false);
+            }}
         />
         {coverageOverlay && (
              <ImageOverlay 
@@ -418,13 +484,15 @@ const MapComponent = () => {
                             
                             setRfObserver({ lat, lng, height: h });
                             
+                            const currentSensitivity = calculateSensitivity ? calculateSensitivity() : -126;
                             const rfParams = {
                                 freq,
                                 txPower: proxyTx, 
                                 txGain: proxyGain, 
                                 rxGain: 2.15,
-                                rxSensitivity: -120,
-                                bw, sf, cr
+                                rxSensitivity: currentSensitivity,
+                                bw, sf, cr,
+                                rxHeight
                             };
                             
                             runRFAnalysis(lat, lng, h, 25000, rfParams);
@@ -457,10 +525,13 @@ const MapComponent = () => {
         
         {/* Batch Nodes Rendering */}
         {batchNodes.length > 0 && batchNodes.map((node) => {
-            // Check if this node is selected
-            const selection = selectedBatchNodes.find(s => s.id === node.id);
-            const isSelected = !!selection;
-            const role = selection?.role;
+            // Check if this node is selected by looking at indices 0 and 1
+            const selectionTX = selectedBatchNodes[0];
+            const selectionRX = selectedBatchNodes[1];
+            const isTX = selectionTX?.id === node.id;
+            const isRX = selectionRX?.id === node.id;
+            const isSelected = isTX || isRX;
+            const role = isTX ? 'TX' : (isRX ? 'RX' : null);
             
             // Determine styling based on selection
             let className = 'batch-node-icon';
@@ -490,23 +561,9 @@ const MapComponent = () => {
                         iconAnchor: [6, 6]
                     })}
                     eventHandlers={{
-                        click: () => {
-                            if (toolMode === 'link') {
-                                // Handle selection logic
-                                if (selectedBatchNodes.length === 0) {
-                                    // First selection - TX
-                                    setSelectedBatchNodes([{ id: node.id, role: 'TX' }]);
-                                    setNodes([{ lat: node.lat, lng: node.lng }]);
-                                } else if (selectedBatchNodes.length === 1) {
-                                    // Second selection - RX, create link
-                                    setSelectedBatchNodes([...selectedBatchNodes, { id: node.id, role: 'RX' }]);
-                                    setNodes([...nodes, { lat: node.lat, lng: node.lng }]);
-                                } else if (selectedBatchNodes.length === 2) {
-                                    // Third click - restart selection process
-                                    setSelectedBatchNodes([{ id: node.id, role: 'TX' }]);
-                                    setNodes([{ lat: node.lat, lng: node.lng }]);
-                                }
-                            }
+                        click: (e) => {
+                            L.DomEvent.stopPropagation(e);
+                            handleNodeSelect(node, true);
                         }
                     }}
                 >
@@ -523,33 +580,44 @@ const MapComponent = () => {
                 onClear={() => {
                     setBatchNodes([]);
                     setShowBatchPanel(false);
-                    setSelectedBatchNodes([]); // Clear selections when clearing all nodes
+                    resetToolState(); // Reset active link/markers when clearing batch panel
                 }}
-                onNodeSelect={(node) => {
-
-                    // Only allow selection in link mode
-                    if (toolMode === 'link') {
-                        if (selectedBatchNodes.length === 0) {
-                            // First selection - TX
-                            setSelectedBatchNodes([{ id: node.id, role: 'TX' }]);
-                            setNodes([{ lat: node.lat, lng: node.lng }]);
-                        } else if (selectedBatchNodes.length === 1) {
-                            // Second selection - RX, create link
-                            setSelectedBatchNodes([...selectedBatchNodes, { id: node.id, role: 'RX' }]);
-                            setNodes([...nodes, { lat: node.lat, lng: node.lng }]);
-                        } else if (selectedBatchNodes.length === 2) {
-                            // Third click - restart selection process
-                            setSelectedBatchNodes([{ id: node.id, role: 'TX' }]);
-                            setNodes([{ lat: node.lat, lng: node.lng }]);
-                        }
-                    }
-                }}
+                onNodeSelect={(node) => handleNodeSelect(node, true)}
+                forceMinimized={isMobile && nodes.length === 2}
             />
         )}
       </MapContainer>
 
       {/* Tool Toggles */}
-      <div style={{ position: 'absolute', top: 20, left: 60, zIndex: 1000, display: 'flex', gap: '10px' }}>
+      <div className="tool-bar-wrapper" style={{
+          position: 'absolute', 
+          top: 20, 
+          left: 20, 
+          zIndex: 1000,
+          maxWidth: 'calc(100vw - 40px)', // Constrain width on mobile
+          height: '40px', // Fixed height container
+          overflow: 'hidden', // Hide overflow of wrapper
+          display: 'flex',
+          alignItems: 'center'
+      }}>
+          <div className="tool-bar-scroll" style={{ 
+              display: 'flex', 
+              gap: '12px',
+              overflowX: 'auto', // Enable scroll
+              whiteSpace: 'nowrap',
+              scrollbarWidth: 'none', // Hide scrollbar FF
+              msOverflowStyle: 'none', // Hide scrollbar IE
+              paddingRight: '30px' // Space for fade
+          }}>
+          {/* Hide Scrollbar Chrome/Safari */}
+          <style>{`
+            .tool-bar-scroll::-webkit-scrollbar { display: none; }
+            @media (min-width: 768px) {
+                .scroll-hint { display: none !important; }
+                .tool-bar-wrapper { max-width: none !important; }
+            }
+          `}</style>
+          
           <button 
             onClick={() => {
                 if (toolMode === 'link') {
@@ -564,11 +632,18 @@ const MapComponent = () => {
                 background: toolMode === 'link' ? '#00ff41' : '#222',
                 color: toolMode === 'link' ? '#000' : '#fff',
                 border: '1px solid #444',
-                padding: '8px 12px',
+                padding: '0 12px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 borderRadius: '4px',
                 cursor: 'pointer',
                 fontWeight: 'bold',
-                boxShadow: '0 2px 5px rgba(0,0,0,0.5)'
+                fontSize: '14px',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
+                whiteSpace: 'nowrap',
+                flexShrink: 0 // Prevent shrinking
             }}
           >
             Link Analysis
@@ -588,11 +663,18 @@ const MapComponent = () => {
                 background: toolMode === 'optimize' ? '#00f2ff' : '#222',
                 color: toolMode === 'optimize' ? '#000' : '#fff',
                 border: '1px solid #444',
-                padding: '8px 12px',
+                padding: '0 12px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 borderRadius: '4px',
                 cursor: 'pointer',
                 fontWeight: 'bold',
-                boxShadow: '0 2px 5px rgba(0,0,0,0.5)'
+                fontSize: '14px',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
+                whiteSpace: 'nowrap',
+                flexShrink: 0
             }}
           >
             {toolMode === 'optimize' ? 'Cancel Scan' : 'Elevation Scan'}
@@ -615,11 +697,18 @@ const MapComponent = () => {
                 background: toolMode === 'viewshed' ? '#22ff00' : '#222',
                 color: toolMode === 'viewshed' ? '#000' : '#fff',
                 border: '1px solid #444',
-                padding: '8px 12px',
+                padding: '0 12px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 borderRadius: '4px',
                 cursor: 'pointer',
                 fontWeight: 'bold',
-                boxShadow: '0 2px 5px rgba(0,0,0,0.5)'
+                fontSize: '14px',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
+                whiteSpace: 'nowrap',
+                flexShrink: 0
             }}
           >
             Viewshed
@@ -639,31 +728,58 @@ const MapComponent = () => {
                 background: toolMode === 'rf_coverage' ? '#ff6b00' : '#222',
                 color: toolMode === 'rf_coverage' ? '#000' : '#fff',
                 border: '1px solid #444',
-                padding: '8px 12px',
+                padding: '0 12px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 borderRadius: '4px',
                 cursor: 'pointer',
                 fontWeight: 'bold',
-                boxShadow: '0 2px 5px rgba(0,0,0,0.5)'
+                fontSize: '14px',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
+                whiteSpace: 'nowrap',
+                flexShrink: 0
             }}
           >
             RF Simulator
           </button>
+      </div> {/* Close scroll container */}
+      
+      {/* Scroll Hint Overlay */}
+      <div className="scroll-hint" style={{
+          position: 'absolute',
+          right: 0,
+          top: 0,
+          bottom: 0,
+          width: '50px',
+          background: 'linear-gradient(to right, transparent, transparent 10%, rgba(0,0,0,0.8) 100%)',
+          pointerEvents: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          paddingRight: '8px'
+      }}>
+          <span style={{color: '#fff', fontSize: '18px', fontWeight: 'bold', textShadow: '0 0 5px #000'}}>›</span>
       </div>
+      
+      </div> {/* Close wrapper */}
       
       {/* Clear Link Button - Shows when link nodes exist */}
       {nodes.length > 0 && (
-          <div style={{ position: 'absolute', top: 65, left: 70, zIndex: 1000, display: 'flex', gap: '8px' }}>
+          <div style={{ position: 'absolute', top: 72, left: 60, zIndex: 1000, display: 'flex', gap: '12px' }}>
               <button 
                   onClick={() => setIsLinkLocked(!isLinkLocked)}
                   style={{
                       background: isLinkLocked ? '#00f2ff' : 'rgba(0, 0, 0, 0.6)',
                       color: isLinkLocked ? '#000' : '#fff',
                       border: '1px solid #00f2ff',
-                      padding: '6px 12px',
+                      padding: '0 12px',
+                      height: '36px',
                       borderRadius: '4px',
                       cursor: 'pointer',
-                      fontSize: '0.85em',
-                      fontWeight: 600,
+                      fontWeight: 'bold',
+                      fontSize: '14px',
                       boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
                       transition: 'all 0.2s ease',
                       display: 'flex',
@@ -673,11 +789,11 @@ const MapComponent = () => {
               >
                   {isLinkLocked ? (
                       <>
-                        <span style={{ fontSize: '1.2em' }}>🔒</span> Locked
+                        <span style={{ fontSize: '1em' }}>🔒</span> Locked
                       </>
                    ) : (
                       <>
-                        <span style={{ fontSize: '1.2em' }}>🔓</span> Lock
+                        <span style={{ fontSize: '1em' }}>🔓</span> Lock
                       </>
                    )}
               </button>
@@ -689,17 +805,21 @@ const MapComponent = () => {
                       setEditMode('GLOBAL'); // Reset edit mode
                       setLinkStats({ minClearance: 0, isObstructed: false, loading: false });
                       setCoverageOverlay(null);
-                      setSelectedBatchNodes([]); // Clear batch node selections
+                      setSelectedBatchNodes([null, null]); // Reset to initial state
                   }}
                   style={{
                       background: 'rgba(255, 50, 50, 0.9)',
                       color: '#fff',
                       border: '1px solid rgba(255, 100, 100, 0.5)',
-                      padding: '6px 12px',
+                      padding: '0 12px',
+                      height: '36px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       borderRadius: '4px',
                       cursor: 'pointer',
-                      fontSize: '0.85em',
-                      fontWeight: 600,
+                      fontWeight: 'bold',
+                      fontSize: '14px',
                       boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
                       transition: 'all 0.2s ease'
                   }}
@@ -713,7 +833,7 @@ const MapComponent = () => {
       
       {/* Clear Viewshed Button */}
       {toolMode === 'viewshed' && viewshedObserver && (
-          <div style={{ position: 'absolute', top: 65, left: 70, zIndex: 1000 }}>
+          <div style={{ position: 'absolute', top: 72, left: 60, zIndex: 1000 }}>
               <button 
                   onClick={() => {
                       setViewshedObserver(null);
@@ -723,11 +843,15 @@ const MapComponent = () => {
                       background: 'rgba(255, 50, 50, 0.9)',
                       color: '#fff',
                       border: '1px solid rgba(255, 100, 100, 0.5)',
-                      padding: '6px 12px',
+                      padding: '0 12px',
+                      height: '36px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       borderRadius: '4px',
                       cursor: 'pointer',
-                      fontSize: '0.85em',
-                      fontWeight: 600,
+                      fontWeight: 'bold',
+                      fontSize: '14px',
                       boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
                       transition: 'all 0.2s ease'
                   }}
@@ -741,7 +865,7 @@ const MapComponent = () => {
       
       {/* Clear RF Coverage Button */}
       {toolMode === 'rf_coverage' && rfObserver && (
-          <div style={{ position: 'absolute', top: 65, left: 70, zIndex: 1000 }}>
+          <div style={{ position: 'absolute', top: 72, left: 60, zIndex: 1000 }}>
               <button 
                   onClick={() => {
                       setRfObserver(null);
@@ -751,11 +875,15 @@ const MapComponent = () => {
                       background: 'rgba(255, 50, 50, 0.9)',
                       color: '#fff',
                       border: '1px solid rgba(255, 100, 100, 0.5)',
-                      padding: '6px 12px',
+                      padding: '0 12px',
+                      height: '36px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       borderRadius: '4px',
                       cursor: 'pointer',
-                      fontSize: '0.85em',
-                      fontWeight: 600,
+                      fontWeight: 'bold',
+                      fontSize: '14px',
                       boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
                       transition: 'all 0.2s ease'
                   }}

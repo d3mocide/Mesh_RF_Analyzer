@@ -51,6 +51,7 @@ EMSCRIPTEN_BINDINGS(meshrf_module) {
         int tx_x,
         int tx_y,
         float tx_h,
+        float rx_h,
         float freq_mhz,
         float tx_power_dbm,
         float tx_gain_dbi,
@@ -61,7 +62,7 @@ EMSCRIPTEN_BINDINGS(meshrf_module) {
     ) {
         float* elev = reinterpret_cast<float*>(elev_ptr);
         return calculate_rf_coverage(
-            elev, width, height, tx_x, tx_y, tx_h,
+            elev, width, height, tx_x, tx_y, tx_h, rx_h,
             freq_mhz, tx_power_dbm, tx_gain_dbi, rx_gain_dbi,
             rx_sensitivity, max_dist, gsd_meters
         );

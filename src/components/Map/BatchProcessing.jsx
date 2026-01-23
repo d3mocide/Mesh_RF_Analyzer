@@ -10,7 +10,8 @@ const BatchProcessing = () => {
         freq, antennaHeight, antennaGain,
         txPower, cableLoss,
         kFactor, clutterHeight,
-        sf, bw
+        sf, bw,
+        isMobile, sidebarIsOpen
     } = useRF();
 
     const [batchNotification, setBatchNotification] = useState(null); // { message, type }
@@ -203,7 +204,8 @@ const BatchProcessing = () => {
                 <div style={{
                     position: 'fixed', 
                     top: '50%', 
-                    left: '50%',
+                    // Center in the map area (assuming sidebar is ~320px)
+                    left: (!isMobile && sidebarIsOpen) ? 'calc(50% + 160px)' : '50%',
                     transform: 'translate(-50%, -50%)',
                     background: 'rgba(10, 10, 15, 0.95)', 
                     color: batchNotification.type === 'success' ? '#4ade80' : '#f87171',
@@ -243,25 +245,6 @@ const BatchProcessing = () => {
                     <div style={{ fontSize: '0.9em', color: 'rgba(255, 255, 255, 0.7)' }}>
                         {batchNotification.message}
                     </div>
-                    
-                    <button 
-                        onClick={() => setBatchNotification(null)}
-                        style={{
-                            marginTop: '8px',
-                            padding: '8px 24px',
-                            background: batchNotification.type === 'success' 
-                                ? 'linear-gradient(90deg, rgba(50, 255, 100, 0.2), rgba(50, 255, 100, 0.1))' 
-                                : 'linear-gradient(90deg, rgba(255, 50, 50, 0.2), rgba(255, 50, 50, 0.1))',
-                            border: batchNotification.type === 'success' ? '1px solid rgba(50, 255, 100, 0.4)' : '1px solid rgba(255, 50, 50, 0.4)',
-                            borderRadius: '8px',
-                            color: 'white',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            fontSize: '0.9em'
-                        }}
-                    >
-                        CLOSE
-                    </button>
                 </div>
             )}
         </div>

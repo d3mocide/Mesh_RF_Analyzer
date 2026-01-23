@@ -54,13 +54,14 @@ void main() {
     vec4 texColor = texture(bitmapTexture, vTexCoord);
     
     // Decode signal strength (dBm) from red channel
-    // We pack dBm as: normalized = (dBm + 150) / 200
-    // Range: -150 dBm to +50 dBm mapped to 0.0-1.0
+    // Texture sampler automatically converts 0-255 byte to 0.0-1.0 float
+    // Original encoding: byte = (dBm + 150) / 200 * 255
+    // Decoding: dBm = (texColor.r * 255 / 255) * 200 - 150 = texColor.r * 200 - 150
     float rssi_dbm = texColor.r * 200.0 - 150.0;
     
-    // Discard pixels with absolute no signal (background 0 -> -150)
-    if (rssi_dbm < -149.0) {
-        discard;
+    // Debug: Show ALL non-zero pixels to verify tex loading
+    if (texColor.r == 0.0) {
+        discard; // Only discard pure black (no data)
     }
     
     // Check if signal is above RX sensitivity
