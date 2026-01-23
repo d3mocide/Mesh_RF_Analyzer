@@ -15,10 +15,10 @@ export const RFProvider = ({ children }) => {
 
     const DEFAULT_CONFIG = {
         device: 'HELTEC_V3',
-        antenna: 'STUBBY',
+        antenna: 'DIPOLE',
         txPower: 20,
         antennaHeight: 5,
-        antennaGain: ANTENNA_PRESETS.STUBBY.gain
+        antennaGain: ANTENNA_PRESETS.DIPOLE.gain
     };
 
     const [nodeConfigs, setNodeConfigs] = useState({
@@ -68,9 +68,19 @@ export const RFProvider = ({ children }) => {
     const [batchNodes, setBatchNodes] = useState([]); // Array of {id, name, lat, lng}
     const [showBatchPanel, setShowBatchPanel] = useState(false);
     
+    // Helper for Environment Variables (Runtime or Build-time)
+    const getEnv = (key, fallback) => {
+        // 1. Runtime Injection (Docker)
+        if (window._env_ && window._env_[key]) return window._env_[key];
+        // 2. Build-time Injection (Vite)
+        if (import.meta.env[`VITE_${key}`]) return import.meta.env[`VITE_${key}`];
+        // 3. Fallback
+        return fallback;
+    };
+
     // Preferences
-    const [units, setUnits] = useState('imperial'); // 'metric' or 'imperial'
-    const [mapStyle, setMapStyle] = useState('dark_green'); // 'dark', 'light', 'topo', 'satellite'
+    const [units, setUnits] = useState(getEnv('DEFAULT_UNITS', 'imperial')); 
+    const [mapStyle, setMapStyle] = useState(getEnv('DEFAULT_MAP_STYLE', 'dark_green'));
     
     // Environmental
     const [kFactor, setKFactor] = useState(1.33); // Standard Refraction

@@ -1,4 +1,4 @@
-import { BitmapLayer } from 'deck.gl';
+import { BitmapLayer } from '@deck.gl/layers';
 
 
 // Fragment Shader: Visualizes the 1-byte visibility mask
@@ -29,7 +29,8 @@ void main() {
     
     if (visible > 0.0) {
         // Visible: Green/Yellow tint
-        fragColor = vec4(0.2, 1.0, 0.2, 0.6 * opacity);
+        // Hardcoded opacity to debug uniform issue
+        fragColor = vec4(0.2, 1.0, 0.2, 0.6);
     } else {
         // Invisible or No Data
         discard;
@@ -47,14 +48,14 @@ export default class WasmViewshedLayer extends BitmapLayer {
 
   draw(opts) {
     const { bounds } = this.props;
-    // Inject uniforms
-    if (this.state.model) {
-        this.state.model.setUniforms({
-            bounds: bounds || [0,0,0,0],
-            opacity: this.props.opacity !== undefined ? this.props.opacity : 1.0
-        });
+    const uniforms = {
+        bounds: bounds || [0, 0, 0, 0],
+        opacity: this.props.opacity !== undefined ? this.props.opacity : 1.0
+    };
+    if (this.state.model && this.state.model.shaderInputs) {
+      this.state.model.shaderInputs.setProps({ uniforms });
     }
-    super.draw(opts);
+    super.draw(opts); // Pass opts as is
   }
 }
 

@@ -7,11 +7,12 @@ services:
     environment:
     # Hostname for reverse proxy
       - ALLOWED_HOSTS=localhost
-    # Custom Elevation API Endpoint (Optional)
-    # - VITE_ELEVATION_API_URL=http://localhost:8080/v1/elevation
     # Default Map Center (Portland, OR)
       - VITE_MAP_LAT=45.5152
       - VITE_MAP_LNG=-122.6784
+    # UI Defaults (Runtime Configurable)
+      - DEFAULT_MAP_STYLE=dark_green
+      - DEFAULT_UNITS=imperial
     restart: always
     networks:
       - meshrf_net
@@ -48,7 +49,9 @@ services:
     image: ghcr.io/d3mocide/meshrf-opentopodata:latest
     container_name: opentopodata
     volumes:
+    # Location of your .hgt/.tif files
       - ./data/opentopodata:/app/data:ro
+    # Location of your config.yaml file
       - ./data/opentopodata/config.yaml:/app/config.yaml:ro
     restart: unless-stopped
     networks:

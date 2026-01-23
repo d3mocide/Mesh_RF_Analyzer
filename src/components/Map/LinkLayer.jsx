@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
+import PropTypes from 'prop-types';
 import { useMapEvents, Marker, Polyline, Popup, Polygon } from 'react-leaflet';
 import L from 'leaflet';
 import { useRF } from '../../context/RFContext';
 import { DEVICE_PRESETS } from '../../data/presets';
-import { calculateLinkBudget, calculateFresnelRadius, calculateFresnelPolygon, analyzeLinkProfile, calculateOkumuraHata } from '../../utils/rfMath';
+import { calculateLinkBudget, calculateFresnelRadius, calculateFresnelPolygon, analyzeLinkProfile, calculateOkumuraHata, calculateBullingtonDiffraction } from '../../utils/rfMath';
 import { fetchElevationPath } from '../../utils/elevation';
 import useThrottledCalculation from '../../hooks/useThrottledCalculation';
 import * as turf from '@turf/turf';
@@ -69,8 +70,8 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
         
         // Use LATEST config from ref, not closure
         const currentConfig = configRef.current;
-        const h1 = currentConfig.nodeConfigs.A.antennaHeight;
-        const h2 = currentConfig.nodeConfigs.B.antennaHeight;
+        const h1 = parseFloat(currentConfig.nodeConfigs.A.antennaHeight);
+        const h2 = parseFloat(currentConfig.nodeConfigs.B.antennaHeight);
         const currentFreq = currentConfig.freq;
 
         fetchElevationPath(p1, p2)
@@ -228,22 +229,34 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
         sf, bw,
         pathLossOverride: pathLossVal
     });
+    
+    // Calculate Diffraction Loss (Bullington) for visualization
+    let diffractionLoss = 0;
+    if (propagationSettings?.model === 'Hata' && linkStats.profileWithStats) {
+         diffractionLoss = calculateBullingtonDiffraction(
+            linkStats.profileWithStats, 
+            freq, 
+            configA.antennaHeight, 
+            configB.antennaHeight
+        );
+    }
 
     // Determine Color and Style
-    const ignoreObstruction = propagationSettings?.model === 'Hata';
+    // We used to ignore obstruction if using Hata, but user wants consistent "Red" if physically obstructed
+    // regardless of whether the signal margin is technically good via diffraction.
     
     // Default to 'Excellent' Green
     let finalColor = '#00ff41'; 
     let isBadLink = false;
 
-    // 1. Obstruction Check (Overrides everything if active and not Hata)
-    if (linkStats.isObstructed && !ignoreObstruction) {
+    // 1. Obstruction Check (Overrides everything)
+    if (linkStats.isObstructed || (linkStats.linkQuality && linkStats.linkQuality.includes('Obstructed'))) {
         finalColor = '#ff0000'; 
         isBadLink = true;
     } 
     // 2. Margin-based Coloring (Matches LinkAnalysisPanel.jsx)
     else {
-        const m = budget.margin;
+        const m = budget.margin - diffractionLoss; // Adjust margin by diffraction loss
         if (m >= 10) {
             finalColor = '#00ff41'; // Excellent +++
         } else if (m >= 5) {
@@ -339,6 +352,24 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
 
         </>
     );
+};
+
+LinkLayer.propTypes = {
+    nodes: PropTypes.arrayOf(PropTypes.shape({
+        lat: PropTypes.number.isRequired,
+        lng: PropTypes.number.isRequired,
+        locked: PropTypes.bool
+    })).isRequired,
+    setNodes: PropTypes.func.isRequired,
+    linkStats: PropTypes.object.isRequired,
+    setLinkStats: PropTypes.func.isRequired,
+    setCoverageOverlay: PropTypes.func,
+    active: PropTypes.bool,
+    locked: PropTypes.bool,
+    propagationSettings: PropTypes.shape({
+        model: PropTypes.string,
+        environment: PropTypes.string
+    })
 };
 
 export default memo(LinkLayer);

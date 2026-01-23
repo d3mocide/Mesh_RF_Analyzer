@@ -1,4 +1,5 @@
-import { TileLayer, BitmapLayer } from 'deck.gl';
+import { BitmapLayer } from '@deck.gl/layers';
+import { TileLayer } from '@deck.gl/geo-layers';
 import { picking } from '@deck.gl/core';
 
 // WebGL 2.0 Fragment Shader for Viewshed
@@ -90,13 +91,13 @@ class ViewshedBitmapLayer extends BitmapLayer {
 
   draw(opts) {
     const { observerPos, bounds, maxDistance } = this.props;
-    // Pass uniforms with safety check
-    if (observerPos && this.state.model && typeof this.state.model.setUniforms === 'function') {
-        this.state.model.setUniforms({
-            observerPos: [observerPos.lng, observerPos.lat, observerPos.height || 0],
-            bounds,
-            maxDistance
-        });
+    const uniforms = {
+        observerPos: [observerPos.lng, observerPos.lat, observerPos.height || 0],
+        bounds,
+        maxDistance
+    };
+    if (this.state.model && this.state.model.shaderInputs) {
+        this.state.model.shaderInputs.setProps({ uniforms });
     }
     super.draw(opts);
   }

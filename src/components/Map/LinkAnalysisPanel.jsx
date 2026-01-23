@@ -1,8 +1,16 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import LinkProfileChart from './LinkProfileChart';
+import { calculateBullingtonDiffraction } from '../../utils/rfMath';
+
+import { useRF } from '../../context/RFContext';
 
 const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagationSettings, setPropagationSettings }) => { 
     if (nodes.length !== 2) return null;
+
+    const { nodeConfigs, freq } = useRF();
+    const h1 = parseFloat(nodeConfigs.A.antennaHeight);
+    const h2 = parseFloat(nodeConfigs.B.antennaHeight);
 
     // Conversions
     const isImperial = units === 'imperial';
@@ -12,7 +20,24 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
 
     // Colors
     const isObstructed = linkStats.isObstructed;
-    const margin = budget ? budget.margin : 0;
+    
+    // Calculate Diffraction Loss if using Hata and we have a profile
+    let diffractionLoss = 0;
+    if (linkStats.profileWithStats) {
+        diffractionLoss = calculateBullingtonDiffraction(
+            linkStats.profileWithStats, 
+            freq, 
+            h1, 
+            h2
+        );
+    }
+
+    // Recalculate margin with diffraction loss if applicable
+    let margin = budget ? budget.margin : 0;
+    if (diffractionLoss > 0) {
+        margin -= diffractionLoss;
+        margin = parseFloat(margin.toFixed(2));
+    }
     
     // WISP Ratings
     const quality = linkStats.linkQuality || 'Obstructed (-)';
@@ -42,11 +67,14 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
     let statusText = rfText;
 
     // Apply Model Constraints
-    if (propagationSettings?.model !== 'Hata') {
-        if (quality.includes('Obstructed')) {
-            statusColor = '#ff0000';
-            statusText = 'OBSTRUCTED (LOS)';
-        }
+    // Fixed: Always report obstruction if physically obstructed, regardless of model
+    if (quality.includes('Obstructed')) {
+        statusColor = '#ff0000';
+        statusText = 'OBSTRUCTED (LOS)';
+    } else if (diffractionLoss > 10) {
+        // If loss is huge (NLOS), override status even if LOS is technically valid (grazing)
+        statusColor = '#ff0000';
+        statusText = 'Diffraction Limited';
     }
 
     // Responsive Chart Logic
@@ -56,7 +84,10 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
     const lastPosRef = React.useRef({ x: 0, y: 0 });
 
     // Calculate Dimensions directly (Derived State)
-    const layoutOffset = propagationSettings?.model === 'Hata' ? 350 : 310;
+    let layoutOffset = 315; // Adjusted to prevent Legend overlap
+    if (diffractionLoss > 0) {
+        layoutOffset += 50; // Compensate for Obstruction Loss warning box
+    }
     
     const dimensions = {
         width: Math.max(260, panelSize.width - 32),
@@ -165,31 +196,21 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
             {/* Propagation Configuration */}
             {propagationSettings && (
                 <div style={{ mb: '12px', padding: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', marginBottom: '12px' }}>
-                     <div style={{ display: 'flex', gap: '8px', marginBottom: propagationSettings.model === 'Hata' ? '8px' : '0' }}>
+                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                         <label style={{ fontSize: '0.75em', color: '#888' }} htmlFor="prop-env">Env:</label>
                          <select 
-                             value={propagationSettings.model}
-                             onChange={(e) => setPropagationSettings(prev => ({ ...prev, model: e.target.value }))}
+                             id="prop-env"
+                             name="prop-env"
+                             value={propagationSettings.environment}
+                             onChange={(e) => setPropagationSettings(prev => ({ ...prev, environment: e.target.value }))}
                              style={{ flex: 1, background: '#222', color: '#fff', border: '1px solid #444', padding: '4px', borderRadius: '4px', fontSize: '0.8em' }}
                          >
-                             <option value="FSPL">Free Space (Optimistic)</option>
-                             <option value="Hata">Okumura-Hata (Realistic)</option>
+                             <option value="urban_small">Urban (Small/Medium)</option>
+                             <option value="urban_large">Urban (Large)</option>
+                             <option value="suburban">Suburban</option>
+                             <option value="rural">Rural / Open</option>
                          </select>
                      </div>
-                     {propagationSettings.model === 'Hata' && (
-                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                             <span style={{ fontSize: '0.75em', color: '#888' }}>Env:</span>
-                             <select 
-                                 value={propagationSettings.environment}
-                                 onChange={(e) => setPropagationSettings(prev => ({ ...prev, environment: e.target.value }))}
-                                 style={{ flex: 1, background: '#222', color: '#fff', border: '1px solid #444', padding: '4px', borderRadius: '4px', fontSize: '0.8em' }}
-                             >
-                                 <option value="urban_small">Urban (Small/Medium)</option>
-                                 <option value="urban_large">Urban (Large)</option>
-                                 <option value="suburban">Suburban</option>
-                                 <option value="rural">Rural / Open</option>
-                             </select>
-                         </div>
-                     )}
                 </div>
             )}
 
@@ -211,6 +232,12 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
                     <div style={{ color: '#888', fontSize: '0.85em' }}>First Fresnel</div>
                     <div style={{ fontSize: '1.1em' }}>{clearanceDisplay}</div>
                 </div>
+                {diffractionLoss > 0 && (
+                     <div style={{ gridColumn: 'span 2', marginTop: '4px', padding: '4px', background: 'rgba(255, 0, 0, 0.2)', borderRadius: '4px' }}>
+                        <div style={{ color: '#ffaaaa', fontSize: '0.85em' }}>Obstruction Loss</div>
+                        <div style={{ fontSize: '1.1em', fontWeight: 600, color: '#ff4444' }}>-{diffractionLoss} dB</div>
+                    </div>
+                )}
             </div>
 
             {/* Profile Chart - Flexible Height */}
@@ -251,6 +278,28 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
             </div>
         </div>
     );
+};
+
+LinkAnalysisPanel.propTypes = {
+    nodes: PropTypes.arrayOf(PropTypes.shape({
+        lat: PropTypes.number.isRequired,
+        lng: PropTypes.number.isRequired
+    })).isRequired,
+    linkStats: PropTypes.shape({
+        isObstructed: PropTypes.bool,
+        minClearance: PropTypes.number,
+        linkQuality: PropTypes.string,
+        profileWithStats: PropTypes.array,
+        loading: PropTypes.bool
+    }).isRequired,
+    budget: PropTypes.object,
+    distance: PropTypes.number.isRequired,
+    units: PropTypes.oneOf(['metric', 'imperial']),
+    propagationSettings: PropTypes.shape({
+        model: PropTypes.string,
+        environment: PropTypes.string
+    }),
+    setPropagationSettings: PropTypes.func
 };
 
 export default LinkAnalysisPanel;

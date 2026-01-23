@@ -1,0 +1,3 @@
+/src/build_wasm/CMakeFiles/meshrf.dir
+/src/build_wasm/CMakeFiles/edit_cache.dir
+/src/build_wasm/CMakeFiles/rebuild_cache.dir

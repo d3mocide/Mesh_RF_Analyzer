@@ -1,0 +1,8 @@
+{
+  "min_lat": 45.5152,
+  "min_lon": -122.6784,
+  "max_lat": 45.5352,
+  "max_lon": -122.6584,
+  "frequency_mhz": 915.0,
+  "height_meters": 5.0
+}

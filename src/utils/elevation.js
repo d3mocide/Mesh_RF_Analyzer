@@ -1,7 +1,7 @@
 import * as turf from '@turf/turf';
 
 /**
- * Fetch elevation profile along a path using Open-Meteo API
+ * Fetch elevation profile along a path using local RF Engine proxy
  * @param {Object} start - {lat, lng}
  * @param {Object} end - {lat, lng}
  * @param {number} samples - Number of points to sample (default 20)
@@ -37,24 +37,32 @@ export const fetchElevationPath = async (start, end, samples = 20) => {
             lngs.push(lng);
         }
 
-        // calls Open-Meteo Elevation API (or local mirror)
-        const baseUrl = import.meta.env.VITE_ELEVATION_API_URL || 'https://api.open-meteo.com/v1/elevation';
-        const url = `${baseUrl}?latitude=${lats.join(',')}&longitude=${lngs.join(',')}`;
+        // Call local RF-Engine OpenTopoData proxy
+        const baseUrl = '/api'; // Proxied to RF engine invite.config
+        const dataset = import.meta.env.VITE_ELEVATION_DATASET || 'ned10m';
+        const locationStr = lats.map((lat, i) => `${lat},${lngs[i]}`).join('|');
         
-        const response = await fetch(url);
+        const response = await fetch(`${baseUrl}/elevation-batch`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                locations: locationStr,
+                dataset: dataset
+            })
+        });
+
         if (!response.ok) throw new Error('Elevation API Failed');
         
         const data = await response.json();
         
-        if (!data.elevation || data.elevation.length !== points.length) {
+        if (!data.results || data.results.length !== points.length) {
              console.warn("Mismatch in elevation data length");
-             // Fallback to 0 if fails? Or null
         }
 
         // Merge elevation into points
         const merged = points.map((pt, idx) => ({
             ...pt,
-            elevation: data.elevation ? data.elevation[idx] : 0
+            elevation: data.results && data.results[idx] ? data.results[idx].elevation : 0
         }));
 
         return merged;

@@ -1,0 +1,1 @@
+/emsdk/upstream/emscripten/em++ -lembind -sWASM=1 -sALLOW_MEMORY_GROWTH=1 -sMODULARIZE=1 -sEXPORT_ES6=1 -sEXPORT_NAME=createMeshRF "-sEXPORTED_FUNCTIONS=['_malloc','_free']" "-sEXPORTED_RUNTIME_METHODS=['HEAPF32','HEAPU8','HEAP32']" -O3 @CMakeFiles/meshrf.dir/objects1.rsp -o meshrf.js 

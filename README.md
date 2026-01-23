@@ -1,166 +1,74 @@
-# meshRF 📡 v1.6.3
+# meshRF 📡 v1.7.0
 
 A professional-grade RF propagation and link analysis tool designed for LoRa Mesh networks (Meshtastic, Reticulum, Sidewinder). Built with **React**, **Leaflet**, and a high-fidelity **Geodetic Physics Engine**.
 
+meshRF is designed for **mission-critical availability**. It operates with **zero external API dependencies** for elevation data, serving high-resolution terrain data directly from self-hosted containers. Currently we do rely on exteranl API's for map tiles but that will be updated soon as well for full offline use. (optional)
+
 ![Link Analysis Demo](./public/meshrf-preview-1.5.png)
 
-## ✨ Features
+## ✨ Core Pillars
 
-### 📡 Advanced Link Analysis
+### 1. 📡 High-Fidelity RF Analysis
 
-- **Geodetic Physics Engine**: Calculates **Earth Bulge** and effective terrain height based on link distance and configurable **K-Factor**.
-- **Okumura-Hata Model**: **[NEW]** Empirical path loss modeling for non-LOS urban/suburban environments (150-1500MHz).
-- **Asymmetric Links**: **[NEW]** Configure **Node A (TX)** and **Node B (RX)** with different hardware (power, gain, height) for realistic base-to-mobile analysis.
-- **Multi-Variable Profile**: Visualizes Terrain, Earth Curvature, Line of Sight (LOS), and Fresnel Zones on a dynamic 2D chart.
-- **Clutter Awareness**: Simulates signal loss through trees or urban "clutter" layers.
-- **Smart Updates**: Analysis only triggers when both TX and RX points are placed, or update button is pressed, minimizing unnecessary API calls.
+- **Geodetic Physics**: Calculates Earth Bulge and effective terrain height based on link distance and configurable **K-Factor**.
+- **Empirical Modeling**: Includes **Okumura-Hata** for realistic urban/suburban path loss (150-1500MHz).
+- **Asymmetric Links**: Configure unique hardware (power, gain, height) for Node A and Node B independently.
+- **Dynamic Fresnel visualization**: Real-time 2D profiles showing LOS and Fresnel zone clearance.
 
-### 📍 Smart Location Optimization
+### 2. 📍 Advanced Site Surveying
 
-- **Area Search**: Draw a bounding box on the map to automatically scan for optimal node placement.
-- **Top 5 Ranking**: Identifies the top 5 highest elevation points within the selected area, ranked by altitude.
-- **Visual Feedback**: Markers display their rank (1-5) directly on the map for easy identification.
+- **Parallel Location Optimization**: Rapidly scan bounding boxes for optimal node placement using high-concurrency grid searches.
+- **RF Coverage Simulator** (In Test): Optimized Wasm-powered ITM propagation modeling for wide-area coverage visualization.
+- **Viewshed Analysis**: Desktop-grade viewshed calculations served via high-resolution Terrain-RGB tiles.
 
-### ⚡ Batch Operations
+### 3. ⚡ Batch Operations & reporting
 
-- **Bulk Link Matrix**: Import a simple CSV of nodes (`Name, Lat, Lon`) and instantly compute link budgets for every possible pair.
-- **Intuitive UX**: Persistent TX/RX badges on the map and smart 3rd-click reset for rapid link evaluation.
-- **Minimize & Scroll**: Collapsible panel with localized scroll handling to handle large datasets without map interference.
-- **Automated Reporting**: Export detailed CSV reports containing RSSI, Signal Margin, and Clearance values for hundreds of potential links.
-
-### 🛠️ Hardware Simulation
-
-- **Device Presets**: Pre-loaded specs for popular mesh hardware (Heltec V3, T-Beam, RAK4631, Station G2).
-- **Radio Config**: Adjust Spreading Factor (SF), Bandwidth (BW), and Coding Rate (CR) to simulate real-world LoRa modulation (LongFast, ShortFast).
-- **Antenna Modeling**: Select standard antennas (Stubby, Dipole, Yagi) or input custom gain figures.
-
-### 🔭 Viewshed Analysis (🚧 Under Maintenance)
-
-- **WebGL-Powered Visualization**: Real-time viewshed overlay showing visible terrain from observer point.
-- **Terrain-RGB Support**: Decodes standard Terrain-RGB tiles for efficient client-side rendering.
-- **Note**: This feature is currently disabled while backend tile-server dependencies are being updated.
-
-### 🎨 Modern Experience
-
-- **Responsive UI**: "Glassmorphism" design with a collapsible sidebar and mobile-friendly drawer navigation.
-- **Dynamic Maps**: Seamlessly switch between **Dark Matter**, **Light**, **Topography**, and **Satellite** basemaps.
-- **Metric/Imperial**: Toggle between Metric (km/m) and Imperial (mi/ft) units on the fly.
+- **Bulk Link Matrix**: Import CSVs (`Name, Lat, Lon`) to instantly compute link budgets for entire networks.
+- **Automated Reporting**: Export detailed CSV reports containing RSSI, Signal Margin, and Clearance values.
 
 ---
 
 ## 🚀 Getting Started
 
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) (v18+) **OR** [Docker](https://www.docker.com/)
-
 ### 🐳 Running with Docker (Recommended)
 
-**For Production/End Users** - Uses pre-built images from GitHub Container Registry:
+meshRF is fully containerized and easy to deploy:
 
 1. **Clone and Run**:
 
    ```bash
    git clone https://github.com/d3mocide/meshrf.git
    cd meshrf
-   docker compose up
+   docker compose up -d
    ```
 
 2. **Access the App**:
    - Frontend: `http://localhost` (Port 80)
    - RF Engine API: `http://localhost:5001/docs` (Swagger UI)
 
-**For Development** - Builds from source with live reloading:
+3. **Elevation Data**:
+   By default, meshRF uses a local **OpenTopoData** instance. You must download elevation files (HGT/TIF) to the `./data/opentopodata` directory.
+   👉 **[See Setup Guide](./OPENTOPO_GUIDE.md)** for data download instructions.
 
-```bash
-docker compose -f docker-compose.dev.yml up --build
-```
+### ⚙️ Configuration (Docker)
 
-(Access Frontend at `http://localhost:5173`)
+You can customize the application behavior by setting environment variables in `docker-compose.yml`:
 
-3. **Elevation Data Configuration**:
-
-   The stack includes a local **OpenTopoData** service to avoid running into public API rate limits.
-
-   👉 **[See Setup Guide](./OPENTOPO_GUIDE.md)** for instructions on downloading elevation data.
-
-   Configure via environment variables in `docker-compose.yml`:
-
-   ```yaml
-   rf-engine:
-     environment:
-       # Points to the internal local service by default
-       - ELEVATION_API_URL=http://opentopodata:5000
-
-       # Dataset to use (must match downloaded files in ./data/opentopodata)
-       - ELEVATION_DATASET=${ELEVATION_DATASET:-ned10m}
-   ```
-
-   Available datasets: `srtm30m`, `srtm90m`, `aster30m`, `ned10m` (US only)
-
-   See the [.env.example](file:///.env.example) file for more configuration options.
-
-### 💻 Running Locally (Development)
-
-1.  Clone the repository:
-
-    ```bash
-    git clone https://github.com/d3mocide/meshrf.git
-    cd meshrf
-    ```
-
-2.  Install dependencies:
-
-    ```bash
-    npm install
-    ```
-
-3.  Start the dev server:
-
-    ```bash
-    npm run dev
-    ```
-
-4.  **Backend Setup (Required for Analysis)**:
-    The frontend requires the Python backend and elevation service. You can run them via Docker while developing the frontend locally:
-
-    ```bash
-    docker compose up rf-engine opentopodata redis
-    ```
-
----
-
-## 📐 Usage Guide
-
-1.  **Placement**: Click on the map to place **TX** (Point A) and **RX** (Point B).
-    - _Tip: Click again to move points._
-2.  **Configuration**: Open the sidebar to select your specific device hardware and antenna height.
-3.  **Environment**: Adjust **Refraction (K)** for atmospheric conditions and **Clutter** (e.g., 10m for trees) to see real-world impact.
-4.  **Analysis**:
-    - **Green**: Good/Excellent Connection (>60% Fresnel Clearance).
-    - **Yellow**: Marginal (LOS exists but Fresnel is infringed).
-    - **Red**: Obstructed (Earth or Terrain blocking).
-5.  **Batch**: Use the "Import Nodes" button to upload a CSV and generate a full mesh network report.
+| Variable            | Description                                                                                    | Default      |
+| ------------------- | ---------------------------------------------------------------------------------------------- | ------------ |
+| `DEFAULT_MAP_STYLE` | Initial map theme (options: `dark`, `light`, `dark_matter`, `dark_green`, `topo`, `satellite`) | `dark_green` |
+| `DEFAULT_UNITS`     | Measurement system (`imperial` or `metric`)                                                    | `imperial`   |
+| `VITE_MAP_LAT`      | Initial map center latitude                                                                    | `45.5152`    |
+| `VITE_MAP_LNG`      | Initial map center longitude                                                                   | `-122.6784`  |
 
 ---
 
 ## 🏗️ Architecture
 
-The project follows a modern microservices pattern:
-
-- **Frontend (`src/`)**: React + Leaflet + Vite. Handles UI, map interactions, and heavy geodetic calculations via Wasm.
-- **RF Engine (`rf-engine/server.py`)**: Python FastAPI service. Serves elevation data and handles synchronous optimization scans.
-- **OpenTopoData**: Self-hosted elevation API providing geodetic data without rate limits.
-- **Redis**: Caching layer for elevation and analysis results.
-
-### Directory Structure
-
-- `src/components`: UI components (Map, Sidebar, Charts).
-- `src/context`: Global RF state and batch processing logic.
-- `src/utils`:
-  - `rfMath.js`: Frontend utils for quick estimates.
-  - `rfService.js`: API client for the **RF Engine**.
-- `rf-engine`: Backend Python service (FastAPI + Celery).
+- **Frontend**: React + Leaflet + Vite. Heavy RF math handled via **C++/Wasm** for near-native performance.
+- **RF Engine**: FastAPI Python service. Features connection pooling and parallelized tile fetching for near-instant elevation profiles.
+- **OpenTopoData**: Self-hosted elevation API providing geodetic data without external requests or rate limits.
+- **Redis**: High-speed caching layer for terrain and analysis results.
 
 ## 📄 License
 
@@ -168,4 +76,4 @@ MIT License. Free to use and modify.
 
 ## ⚠️ Disclaimer
 
-This tool is a simulation based on mathematical models. Real-world RF propagation is affected by complex factors (interference, buildings, weather) not fully modeled here. Always verify with field testing.
+This tool is a simulation. Real-world RF propagation is affected by complex factors (interference, buildings, weather) not fully modeled here. Always verify with field testing.

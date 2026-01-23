@@ -1,5 +1,32 @@
 # Release Notes
 
+## v1.7.0 - Pro RF Coverage & Runtime Config
+
+This major release introduces a powerful new **RF Coverage Tool** with stitched multi-tile analysis and draggable transmitters, alongside significant DevOps improvements for runtime configuration.
+
+### 📡 RF Coverage Tool (Beta)
+
+- **3x3 Grid Analysis**: The tool now automatically stitches together a 9-tile grid around the observer, drastically expanding the analysis area.
+- **Draggable Transmitter**: Real-time updates! Drag the "RF Transmitter" marker to instantly recalculate coverage from a new location.
+- **Enhanced Heatmap**: New "SNR-based" visualization using a Scatterplot layer for high-performance rendering of signal quality (Green=Excellent to Red=Poor).
+- **Auto-Recalculation**: Changing radio settings (Frequency, SF, BW) or physical parameters (Antenna Height) now automatically triggers a coverage refresh.
+
+### 🐳 DevOps & Configuration
+
+- **Runtime Configuration**: You can now set `DEFAULT_MAP_STYLE` and `DEFAULT_UNITS` in `docker-compose.yml` **without rebuilding the image**.
+- **Docker Entrypoint**: A new `docker-entrypoint.sh` script injects these environment variables into the frontend at container startup.
+- **Default Map Style**: Updated default map style to **Dark Green** (`dark_green`) for better terrain contrast.
+
+### 🛠️ Quality of Life & Bug Fixes
+
+- **Viewshed Reliability**: Implemented smart worker polling to completely eliminate the "Worker not ready" error when running analysis immediately after page load.
+- **Link Analysis Precision**: Fixed a critically important type coercion bug where Antenna Heights were treated as strings, ensuring accurate Fresnel zone calculations.
+- **Obstruction Logic**: Refined the map line coloring logic to strictly adhere to obstruction flags, ensuring "Red" means "Obstructed" without ambiguity.
+- **Accessibility**: Comprehensive improvements to form labels, IDs, and ARIA attributes across the Sidebar and Analysis panels.
+- **Code Cleanup**: Removed unused imports (`fetchElevationPath` etc.) and dead code in `Sidebar.jsx`, `MapContainer.jsx`, and `LinkLayer.jsx`.
+
+---
+
 ## v1.6.3 - Docker & Config Enhancements
 
 This update improves the development and deployment experience with optimized Docker builds and robust configuration handling for self-hosted elevation data.

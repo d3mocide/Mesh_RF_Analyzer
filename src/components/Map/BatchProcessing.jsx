@@ -49,9 +49,11 @@ const BatchProcessing = () => {
             
             {/* Import */}
             <div style={{marginBottom: '8px'}}>
-                <label style={{display: 'block', padding: '6px 10px', background: '#333', color: '#ccc', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8em', textAlign: 'center'}}>
+                <label htmlFor="csv-upload" style={{display: 'block', padding: '6px 10px', background: '#333', color: '#ccc', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8em', textAlign: 'center'}}>
                     Import Nodes (CSV)
                     <input 
+                    id="csv-upload"
+                    name="csv-upload"
                     ref={fileInputRef}
                     type="file" 
                     accept=".csv"
@@ -68,8 +70,6 @@ const BatchProcessing = () => {
                                     if (idx === 0 && line.toLowerCase().includes('lat')) return; // Skip header
                                     const parts = line.split(',');
                                     if (parts.length >= 3) {
-                                        // Assume: name, lat, lon OR lat, lon, name?
-                                        // Let's try to detect or enforce Name,Lat,Lon
                                         let name, lat, lng;
                                         
                                         // Simple heuristic: if parts[0] is number, it's lat.
@@ -203,7 +203,7 @@ const BatchProcessing = () => {
                 <div style={{
                     position: 'fixed', 
                     top: '50%', 
-                    left: '50%', // Centered relative to screen, inside sidebar context it might be weird but we used fixed
+                    left: '50%',
                     transform: 'translate(-50%, -50%)',
                     background: 'rgba(10, 10, 15, 0.95)', 
                     color: batchNotification.type === 'success' ? '#4ade80' : '#f87171',

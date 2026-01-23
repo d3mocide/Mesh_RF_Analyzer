@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 
 const LinkProfileChart = ({ profileWithStats, width = 200, height = 100, units = 'metric', margin = 100, losColor }) => { 
     if (!profileWithStats || profileWithStats.length === 0) return null;
@@ -36,8 +37,14 @@ const LinkProfileChart = ({ profileWithStats, width = 200, height = 100, units =
     const totalDist = profileWithStats[profileWithStats.length - 1].distance;
 
     // Label Values
+    // Label Values
     const totalDistLabel = (totalDist * distFactor).toFixed(1);
-    const maxElevLabel = (maxElev * heightFactor).toFixed(0);
+    
+    const startElev = profileWithStats[0].losHeight;
+    const endElev = profileWithStats[profileWithStats.length - 1].losHeight;
+    
+    const startLabel = (startElev * heightFactor).toFixed(0);
+    const endLabel = (endElev * heightFactor).toFixed(0);
 
     // Padding
     const p = 10;
@@ -114,16 +121,45 @@ const LinkProfileChart = ({ profileWithStats, width = 200, height = 100, units =
                 <text 
                     x={p} 
                     y={p + 10} 
-                    fill="#ccc" 
-                    fontSize="10" 
+                    fill="#00ff41" 
+                    fontWeight="bold"
+                    fontSize="11" 
                     textAnchor="start" 
                     style={{ textShadow: '0 0 3px #000' }}
                 >
-                    {maxElevLabel}{heightUnit}
+                    {startLabel}{heightUnit}
+                </text>
+                
+                {/* End Point Elevation Label */}
+                <text 
+                    x={width - p} 
+                    y={p + 10} 
+                    fill="#ff0000" 
+                    fontWeight="bold"
+                    fontSize="11" 
+                    textAnchor="end" 
+                    style={{ textShadow: '0 0 3px #000' }}
+                >
+                    {endLabel}{heightUnit}
                 </text>
             </svg>
         </div>
     );
+};
+
+LinkProfileChart.propTypes = {
+    profileWithStats: PropTypes.arrayOf(PropTypes.shape({
+        distance: PropTypes.number.isRequired,
+        elevation: PropTypes.number,
+        effectiveTerrain: PropTypes.number,
+        losHeight: PropTypes.number,
+        f1Radius: PropTypes.number
+    })).isRequired,
+    width: PropTypes.number,
+    height: PropTypes.number,
+    units: PropTypes.oneOf(['metric', 'imperial']),
+    margin: PropTypes.number,
+    losColor: PropTypes.string
 };
 
 export default LinkProfileChart;

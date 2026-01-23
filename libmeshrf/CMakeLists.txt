@@ -10,6 +10,7 @@ file(GLOB ITM_SOURCES "vendor/itm/src/*.cpp")
 set(MESHRF_SOURCES
     src/meshrf_itm.cpp
     src/meshrf_viewshed.cpp
+    src/meshrf_coverage.cpp
     src/meshrf_planner.cpp
 )
 
@@ -32,6 +33,8 @@ if(EMSCRIPTEN)
         -sMODULARIZE=1
         -sEXPORT_ES6=1
         -sEXPORT_NAME=createMeshRF
+        -sEXPORTED_FUNCTIONS=['_malloc','_free']
+        -sEXPORTED_RUNTIME_METHODS=['HEAPF32','HEAPU8','HEAP32']
         -O3
     )
 else()

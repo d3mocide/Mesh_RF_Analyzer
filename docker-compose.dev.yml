@@ -20,6 +20,8 @@ services:
   rf-engine:
     build: ./rf-engine
     container_name: rf_engine_dev
+    ports:
+      - "5001:5001"  # Expose to host for local dev
     # Overlay dev volumes for Python hot-reloading
     volumes:
       - ./rf-engine:/app

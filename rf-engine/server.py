@@ -52,15 +52,30 @@ class LinkRequest(BaseModel):
 def calculate_link_endpoint(req: LinkRequest):
     """
     Synchronous endpoint for real-time link analysis.
-    Uses cached TileManager.
+    Uses cached TileManager to fetch elevation profile.
     """
-    result = analyze_link(
-        tile_manager,
+    # Calculate distance between points
+    dist_m = rf_physics.haversine_distance(
+        req.tx_lat, req.tx_lon,
+        req.rx_lat, req.rx_lon
+    )
+    
+    # Get elevation profile along path
+    elevs = tile_manager.get_elevation_profile(
         req.tx_lat, req.tx_lon,
         req.rx_lat, req.rx_lon,
-        req.frequency_mhz,
-        req.tx_height, req.rx_height
+        samples=50
     )
+    
+    # Analyze link with correct signature
+    result = rf_physics.analyze_link(
+        elevs,
+        dist_m,
+        req.frequency_mhz,
+        req.tx_height,
+        req.rx_height
+    )
+    
     return result
 
 class ElevationRequest(BaseModel):
@@ -74,6 +89,48 @@ def get_elevation_endpoint(req: ElevationRequest):
     """
     elevation = tile_manager.get_elevation(req.lat, req.lon)
     return {"elevation": elevation}
+
+
+class BatchElevationRequest(BaseModel):
+    locations: str  # Pipe-separated "lat,lng|lat,lng|..."
+    dataset: str = "ned10m"
+
+@app.post("/elevation-batch")
+def get_batch_elevation(req: BatchElevationRequest):
+    """
+    Batch elevation lookup for frontend path profiles.
+    Used for optimized path profiles.
+    """
+    try:
+        # Parse locations
+        coords = []
+        for loc in req.locations.split('|'):
+            if not loc.strip(): continue
+            parts = loc.split(',')
+            if len(parts) == 2:
+                lat, lng = map(float, parts)
+                coords.append((lat, lng))
+        
+        # Fetch elevations in parallel
+        elevs = tile_manager.get_elevations_batch(coords)
+        
+        results = []
+        for i, (lat, lon) in enumerate(coords):
+            results.append({
+                "elevation": elevs[i],
+                "location": {"lat": lat, "lng": lon}
+            })
+        
+        return {
+            "status": "OK",
+            "results": results
+        }
+    except Exception as e:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=400,
+            content={"status": "INVALID_REQUEST", "error": str(e)}
+        )
 
 
 @app.get("/health")
@@ -128,22 +185,24 @@ def optimize_location_endpoint(req: OptimizeRequest):
         lat_step = (req.max_lat - req.min_lat) / steps
         lon_step = (req.max_lon - req.min_lon) / steps
         
-        candidates = []
-        
+        coords = []
         for i in range(steps + 1):
             for j in range(steps + 1):
                 lat = req.min_lat + (i * lat_step)
                 lon = req.min_lon + (j * lon_step)
+                coords.append((lat, lon))
                 
-                # Simple elevation check
-                elev = tile_manager.get_elevation(lat, lon)
-                
-                candidates.append({
-                    "lat": lat, 
-                    "lon": lon, 
-                    "elevation": elev,
-                    "score": elev 
-                })
+        # Batch fetch elevations
+        elevs = tile_manager.get_elevations_batch(coords)
+        
+        candidates = []
+        for i, (lat, lon) in enumerate(coords):
+            candidates.append({
+                "lat": lat, 
+                "lon": lon, 
+                "elevation": elevs[i],
+                "score": elevs[i] 
+            })
 
         # Sort by elevation desc
         candidates.sort(key=lambda x: x["elevation"], reverse=True)

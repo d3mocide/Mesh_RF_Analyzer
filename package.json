@@ -1,7 +1,7 @@
 {
   "name": "mesh-analyzer",
   "private": true,
-  "version": "0.2.0-rc",
+  "version": "1.7.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,14 +11,17 @@
   },
   "dependencies": {
     "@deck.gl-community/leaflet": "^9.2.0-beta.3",
+    "@deck.gl/core": "^9.2.5",
+    "@deck.gl/layers": "^9.2.5",
+    "@deck.gl/geo-layers": "^9.2.5",
     "@turf/turf": "^7.3.1",
-    "deck.gl": "^9.2.5",
     "geotiff": "^2.1.4-beta.1",
     "leaflet": "^1.9.4",
     "lodash": "^4.17.21",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-leaflet": "^5.0.0"
+    "react-leaflet": "^5.0.0",
+    "prop-types": "^15.8.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

@@ -5,11 +5,16 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 // Vite handles 'new Worker' with URL import
 const worker = new Worker(new URL('../../libmeshrf/js/Worker.ts', import.meta.url), { type: 'module' });
 
+import { stitchElevationGrids, transformObserverCoords, calculateStitchedBounds } from '../utils/tileStitcher';
+
 export function useViewshedTool(active) {
-    const [resultLayer, setResultLayer] = useState(null); // { data: Uint8Array, width, height, bounds }
+    const [resultLayer, setResultLayer] = useState(null); // { data, width, height, bounds }
     const [isCalculating, setIsCalculating] = useState(false);
     const [error, setError] = useState(null);
     const workerInitialized = useRef(false);
+    
+    // Track analysis state
+    const analysisIdRef = useRef(null);
 
     useEffect(() => {
         worker.onmessage = (e) => {
@@ -23,28 +28,43 @@ export function useViewshedTool(active) {
 
             if (workerError) {
                 console.error("Worker Error:", workerError);
-                setIsCalculating(false);
-                setError(workerError);
+                if (analysisIdRef.current && id === analysisIdRef.current) {
+                    setIsCalculating(false);
+                    setError(workerError);
+                }
                 return;
             }
 
-            if (type === 'CALCULATE_VIEWSHED_RESULT' || (id && id.startsWith('vs-'))) {
-                console.log("Viewshed Calculation Complete");
-                // Result is Uint8Array
-                // We need to store it to pass to the Map Layer
-                setResultLayer((prev) => ({
-                    ...prev, // Keep bounds from request
-                    data: result,
-                }));
-                setIsCalculating(false);
+            if (type === 'CALCULATE_VIEWSHED_RESULT') {
+                if (analysisIdRef.current && id === analysisIdRef.current) {
+                   console.log("Stitched Viewshed Calculation Complete");
+                   
+                   // result is Uint8Array of the stitched grid
+                   // DEBUG: Check visibility
+                   let visibleCount = 0;
+                   for(let k=0; k<result.length; k++) { if(result[k] > 0) visibleCount++; }
+                   console.log(`[ViewshedWorker] Result received. Size: ${result.length}. Visible pixels: ${visibleCount}`);
+                   
+                   // We need to retrieve the bounds we calculated earlier.
+                   // Since this is a single async flow, we can't easily access the local vars of runAnalysis from here
+                   // unless we store them in a ref or if we pass them back from worker (by adding to payload).
+                   // A simple Ref for "currentBounds" works since we only run one analysis at a time usually.
+                   if (currentBoundsRef.current) {
+                       setResultLayer({
+                           data: result,
+                           width: currentBoundsRef.current.width,
+                           height: currentBoundsRef.current.height,
+                           bounds: currentBoundsRef.current.bounds
+                       });
+                   }
+                   setIsCalculating(false);
+                }
             }
         };
-
-        return () => {
-            // worker.terminate(); // Don't terminate, keep alive
-        };
     }, []);
-
+    
+    const currentBoundsRef = useRef(null);
+    
     // Helper: Lat/Lon to Tile Coordinates
     const getTile = (lat, lon, zoom) => {
         const d2r = Math.PI / 180;
@@ -68,32 +88,41 @@ export function useViewshedTool(active) {
             south: tile2lat(y + 1, z)
         };
     };
+    
+    // Helper: Get adjacent 3x3 tiles
+    const getAdjacentTiles = (centerTile) => {
+      const offsets = [
+        [-1, -1], [0, -1], [1, -1],
+        [-1,  0], [0,  0], [1,  0],
+        [-1,  1], [0,  1], [1,  1]
+      ];
+      // Max tile index for zoom
+      const maxTile = Math.pow(2, centerTile.z) - 1;
+      
+      return offsets.map(([dx, dy]) => {
+          const x = centerTile.x + dx;
+          const y = centerTile.y + dy;
+          // Validate world bounds
+          if (y < 0 || y > maxTile) return null; // Y bounds hard
+           let wrappedX = x;
+           if (x < 0) wrappedX = maxTile + x + 1;
+           if (x > maxTile) wrappedX = x - maxTile - 1;
+           
+           return { x: wrappedX, y, z: centerTile.z };
+      }).filter(t => t !== null);
+    };
 
-    const runAnalysis = useCallback(async (lat, lon, height = 2.0, maxDist = 3000) => {
-        if (!workerInitialized.current) {
-            console.warn("Worker not ready");
-            return;
-        }
-        
-        setIsCalculating(true);
-        setError(null);
-
+    const fetchAndDecodeTile = async (tile) => {
+        const tileUrl = `/api/tiles/${tile.z}/${tile.x}/${tile.y}.png`;
         try {
-            // 1. Fetch Elevation Data from Backend Tile Server (Terrain-RGB)
-            const zoom = 12; // Matches backend default
-            const tile = getTile(lat, lon, zoom);
-            const tileUrl = `/api/tiles/${tile.z}/${tile.x}/${tile.y}.png`;
-            
-            // Load and decode Image
             const img = new Image();
             img.crossOrigin = "Anonymous";
             img.src = tileUrl;
-            
             await new Promise((resolve, reject) => {
                 img.onload = resolve;
                 img.onerror = reject;
             });
-
+            
             const canvas = document.createElement('canvas');
             canvas.width = img.width;
             canvas.height = img.height;
@@ -101,55 +130,102 @@ export function useViewshedTool(active) {
             ctx.drawImage(img, 0, 0);
             
             const imageData = ctx.getImageData(0, 0, img.width, img.height);
-            const pixels = imageData.data; // RGBA
+            const pixels = imageData.data;
             const floatData = new Float32Array(img.width * img.height);
             
-            // Decode Terrain-RGB: h = -10000 + ((R * 256 * 256 + G * 256 + B) * 0.1)
             for (let i = 0; i < pixels.length; i += 4) {
                 const r = pixels[i];
                 const g = pixels[i + 1];
                 const b = pixels[i + 2];
-                // index = i / 4
                 floatData[i / 4] = -10000 + ((r * 256 * 256 + g * 256 + b) * 0.1);
             }
-
-            const width = img.width;
-            const demHeight = img.height;
-            const bbox = getTileBounds(tile.x, tile.y, tile.z);
-
-            // 2. Find specific TX index in the DEM (Tile)
-            const pixelW = (bbox.east - bbox.west) / width;
-            const pixelH = (bbox.north - bbox.south) / demHeight;
             
-            // Relative position in tile
-            const tx_x = Math.floor((lon - bbox.west) / pixelW);
-            const tx_y = Math.floor((bbox.north - lat) / pixelH); 
+            // We don't necessarily need bounds here for stitching, just data and indices
+            return {
+                elevation: floatData,
+                width: img.width,
+                height: img.height,
+                tile
+            };
+        } catch (err) {
+            console.warn(`Failed to fetch tile ${tile.x}/${tile.y}`, err);
+            return null; // Return null on failure
+        }
+    };
 
-            console.log(`Analyzing at Tile ${tile.x}/${tile.y} (z${tile.z}), Local Grid: ${tx_x}, ${tx_y}`);
-
-            // 3. Dispatch to Worker
-            const id = `vs-${Date.now()}`;
+    const runAnalysis = useCallback(async (lat, lon, height = 2.0, maxDist = 3000) => {
+        // Wait for worker to initialize if needed
+        if (!workerInitialized.current) {
+            console.log("Worker not ready, waiting...");
+            let attempts = 0;
+            while (!workerInitialized.current && attempts < 20) {
+                await new Promise(r => setTimeout(r, 200));
+                attempts++;
+            }
+            if (!workerInitialized.current) {
+                console.error("Worker failed to initialize in time");
+                setError("Engine failed to start. Please reload.");
+                return;
+            }
+        }
+        
+        setIsCalculating(true);
+        setError(null);
+        setResultLayer(null);
+        
+        const currentAnalysisId = `vs-stitch-${Date.now()}`;
+        analysisIdRef.current = currentAnalysisId;
+        
+        try {
+            const zoom = maxDist > 8000 ? 10 : 12; 
+            const centerTile = getTile(lat, lon, zoom);
             
-            setResultLayer({ 
-                width, 
-                height: demHeight, 
-                bounds: bbox,
-                data: null 
-            });
-
+            // 1. Get Tiles
+            const targetTiles = getAdjacentTiles(centerTile);
+            console.log(`Analyzing ${targetTiles.length} tiles around ${lat}, ${lon} (Stitched)`);
+            
+            // 2. Fetch all in parallel
+            const loadedTiles = await Promise.all(targetTiles.map(fetchAndDecodeTile));
+            const validTiles = loadedTiles.filter(t => t !== null);
+            
+            if (validTiles.length === 0) {
+                setError("Failed to load any elevation data");
+                setIsCalculating(false);
+                return;
+            }
+            
+            // 3. Stitch Tiles
+            const stitched = stitchElevationGrids(validTiles, centerTile, 256);
+            console.log(`[Viewshed] Stitched Grid: ${stitched.width}x${stitched.height}. Data Len: ${stitched.data.length}`);
+            console.log(`[Viewshed] Center Elev Sample: ${stitched.data[Math.floor(stitched.data.length/2)]}`);
+            
+            // 4. Calculate Observer Position in Stitched Grid
+            const observerCoords = transformObserverCoords(lat, lon, centerTile, stitched.width, stitched.height, 256);
+            
+            // 5. Calculate Stitched Geographic Bounds
+            const bounds = calculateStitchedBounds(centerTile);
+            
+            // Store context for callback
+            currentBoundsRef.current = {
+                width: stitched.width,
+                height: stitched.height,
+                bounds: bounds
+            };
+            
+            // 6. Dispatch Single Job to Worker
             worker.postMessage({
-                id,
+                id: currentAnalysisId,
                 type: 'CALCULATE_VIEWSHED',
                 payload: {
-                    elevation: floatData, 
-                    width,
-                    height: demHeight,
-                    tx_x,
-                    tx_y,
+                    elevation: stitched.data, // Single 768x768 grid
+                    width: stitched.width,
+                    height: stitched.height,
+                    tx_x: observerCoords.x,
+                    tx_y: observerCoords.y,
                     tx_h: height,
-                    max_dist: Math.floor(maxDist / 30.0) // Approx pixels
+                    max_dist: Math.floor(maxDist / 30.0)
                 }
-            }, [floatData.buffer]); 
+            }, [stitched.data.buffer]); 
 
         } catch (err) {
             console.error("Analysis Failed:", err);
@@ -159,5 +235,10 @@ export function useViewshedTool(active) {
 
     }, []);
 
-    return { runAnalysis, resultLayer, isCalculating, error };
+    const clear = useCallback(() => {
+        setResultLayer(null);
+        setError(null);
+    }, []);
+
+    return { runAnalysis, resultLayer, isCalculating, error, clear };
 }

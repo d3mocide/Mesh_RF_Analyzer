@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { RADIO_PRESETS, DEVICE_PRESETS, ANTENNA_PRESETS } from '../../data/presets';
 import { useRF } from '../../context/RFContext';
-import { fetchElevationPath } from '../../utils/elevation';
-import { analyzeLinkProfile, calculateLinkBudget } from '../../utils/rfMath';
 import BatchProcessing from '../Map/BatchProcessing';
 
 const Sidebar = () => {
@@ -202,8 +200,10 @@ const Sidebar = () => {
             {editMode === 'GLOBAL' ? 'Hardware Defaults' : 'Node Hardware'}
         </h3>
         
-        <label style={labelStyle}>Device Preset</label>
+        <label style={labelStyle} htmlFor="device-preset">Device Preset</label>
         <select 
+            id="device-preset"
+            name="device-preset"
             style={selectStyle}
             value={selectedDevice}
             onChange={(e) => setSelectedDevice(e.target.value)}
@@ -213,8 +213,10 @@ const Sidebar = () => {
             ))}
         </select>
 
-        <label style={labelStyle}>Antenna Type</label>
+        <label style={labelStyle} htmlFor="antenna-type">Antenna Type</label>
         <select 
+            id="antenna-type"
+            name="antenna-type"
             style={selectStyle}
             value={selectedAntenna}
             onChange={(e) => setSelectedAntenna(e.target.value)}
@@ -228,8 +230,10 @@ const Sidebar = () => {
 
         {isCustomAntenna && (
             <div>
-                 <label style={labelStyle}>Custom Gain (dBi)</label>
+                 <label style={labelStyle} htmlFor="custom-gain">Custom Gain (dBi)</label>
                  <input 
+                    id="custom-gain"
+                    name="custom-gain"
                     type="number" 
                     style={inputStyle} 
                     value={antennaGain} 
@@ -238,10 +242,13 @@ const Sidebar = () => {
             </div>
         )}
 
-        <label style={labelStyle}>
+        <label style={labelStyle} htmlFor="antenna-height">
             Antenna Height: {units === 'imperial' ? `${(antennaHeight * 3.28084).toFixed(0)} ft` : `${antennaHeight} m`}
         </label>
         <input 
+            id="antenna-height"
+            name="antenna-height"
+            aria-label="Antenna Height"
             type="range" 
             min="1" max="50" 
             value={antennaHeight} 
@@ -285,8 +292,10 @@ const Sidebar = () => {
             Radio Config <span style={{fontSize: '0.8em', color: '#888', fontWeight: 'normal'}}>(Shared)</span>
         </h3>
         
-        <label style={labelStyle}>Radio Preset</label>
+        <label style={labelStyle} htmlFor="radio-preset">Radio Preset</label>
         <select 
+            id="radio-preset"
+            name="radio-preset"
             style={selectStyle}
             value={selectedRadioPreset}
             onChange={(e) => setSelectedRadioPreset(e.target.value)}
@@ -298,8 +307,10 @@ const Sidebar = () => {
 
         <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-sm)'}}>
             <div>
-                <label style={labelStyle}>Freq (MHz)</label>
+                <label style={labelStyle} htmlFor="radio-freq">Freq (MHz)</label>
                 <input 
+                    id="radio-freq"
+                    name="radio-freq"
                     type="number" 
                     style={inputStyle} 
                     value={freq} 
@@ -308,8 +319,10 @@ const Sidebar = () => {
                 />
             </div>
              <div>
-                <label style={labelStyle}>BW (kHz)</label>
+                <label style={labelStyle} htmlFor="radio-bw">BW (kHz)</label>
                 <input 
+                    id="radio-bw"
+                    name="radio-bw"
                     type="number" 
                     style={inputStyle} 
                     value={bw} 
@@ -318,8 +331,10 @@ const Sidebar = () => {
                 />
             </div>
              <div>
-                <label style={labelStyle}>SF</label>
+                <label style={labelStyle} htmlFor="radio-sf">SF</label>
                 <input 
+                    id="radio-sf"
+                    name="radio-sf"
                     type="number" 
                     style={inputStyle} 
                     value={sf} 
@@ -328,8 +343,10 @@ const Sidebar = () => {
                 />
             </div>
              <div>
-                <label style={labelStyle}>CR</label>
+                <label style={labelStyle} htmlFor="radio-cr">CR</label>
                 <input 
+                    id="radio-cr"
+                    name="radio-cr"
                     type="number" 
                     style={inputStyle} 
                     value={cr} 
@@ -339,13 +356,15 @@ const Sidebar = () => {
             </div>
         </div>
 
-        <label style={labelStyle}>
+        <label style={labelStyle} htmlFor="tx-power">
             TX Power (dBm): {txPower} 
             <span style={{color: 'var(--color-secondary)', marginLeft: '8px'}}>
                 (Max: {DEVICE_PRESETS[selectedDevice].tx_power_max})
             </span>
         </label>
         <input 
+            id="tx-power"
+            name="tx-power"
             type="range" 
             min="0" 
             max={DEVICE_PRESETS[selectedDevice].tx_power_max} 
@@ -447,12 +466,14 @@ const Sidebar = () => {
                  
                  <div style={{display: 'flex', flexDirection: 'column', gap: '12px'}}>
                      <div>
-                         <label style={{fontSize: '0.75em', color: '#888', display: 'block', marginBottom: '4px'}}>
+                         <label style={{fontSize: '0.75em', color: '#888', display: 'block', marginBottom: '4px'}} htmlFor="k-factor">
                              Refraction Index (K-Factor)
                          </label>
                          <input 
                             type="number" 
                             step="0.01"
+                            id="k-factor"
+                            name="k-factor"
                             value={kFactor}
                             onChange={(e) => setKFactor(parseFloat(e.target.value))}
                             style={{...inputStyle, padding: '6px', fontSize: '0.9em'}}
@@ -462,12 +483,14 @@ const Sidebar = () => {
                          </div>
                      </div>
                      <div>
-                         <label style={{fontSize: '0.75em', color: '#888', display: 'block', marginBottom: '4px'}}>
+                         <label style={{fontSize: '0.75em', color: '#888', display: 'block', marginBottom: '4px'}} htmlFor="clutter-height">
                              Clutter Height (m)
                          </label>
                          <input 
                             type="number" 
                             step="1"
+                            id="clutter-height"
+                            name="clutter-height"
                             value={clutterHeight}
                             onChange={(e) => setClutterHeight(parseFloat(e.target.value))}
                             style={{...inputStyle, padding: '6px', fontSize: '0.9em'}}
@@ -479,8 +502,10 @@ const Sidebar = () => {
 
             {/* Map Theme Selector */}
              <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', marginTop: '12px'}}>
-                 <label style={{color: '#aaa', fontSize: '0.9em'}}>Map Style</label>
+                 <label style={{color: '#aaa', fontSize: '0.9em'}} htmlFor="map-style">Map Style</label>
                  <select 
+                    id="map-style"
+                    name="map-style"
                     value={mapStyle}
                     onChange={(e) => setMapStyle(e.target.value)}
                     style={{

@@ -3,12 +3,12 @@
 #include <cstdint>
 #include "meshrf_itm.h"
 #include "meshrf_viewshed.h"
+#include "meshrf_coverage.h"
 #include <vector>
 
 using namespace emscripten;
 
-// Helper to bind LinkParameters struct
-// External declaration
+// External declarations
 std::vector<int> optimize_site_selection(const float* coverage_matrix, int num_candidates, int num_targets);
 
 EMSCRIPTEN_BINDINGS(meshrf_module) {
@@ -29,33 +29,42 @@ EMSCRIPTEN_BINDINGS(meshrf_module) {
     // Register Vector types
     register_vector<float>("VectorFloat");
     register_vector<uint8_t>("VectorUint8");
-    register_vector<int>("VectorInt"); // Added for optimization result
+    register_vector<int>("VectorInt");
     
-    // 1. Calculations: Radial Loss (ITM)
-    // We need to handle the raw pointer passing slightly differently for JS.
-    // JS side will pass a typed array. Embind supports 'memory view' or manual pointer arithmetic.
-    // Prompt Set 3 specifically asks to: 
-    // "Calculate byte size... Call Module._malloc()... Call Module.HEAPF32.set()..."
-    // So we should expose a C-style function that takes a uintptr_t (memory address) ?
-    // Embind allows direct binding of functions. If we bind `calculate_radial_loss`, 
-    // Embind tries to marshall types.
-    // Spec says: "Call the C++ function calculate_viewshed()."
-    // Since we are doing manual memory management per Prompt 3, we likely want to expose a function 
-    // that takes an integer address (pointer) and size.
-    
-    // Standalone functions for manual memory management
+    // ITM Radial Loss Calculation
     function("calculate_itm", optional_override([](uintptr_t profile_ptr, int count, LinkParameters params) {
         float* profile = reinterpret_cast<float*>(profile_ptr);
         return calculate_radial_loss(profile, count, params);
     }));
 
+    // Simple Viewshed (Line-of-Sight)
     function("calculate_viewshed", optional_override([](uintptr_t elev_ptr, int width, int height, int tx_x, int tx_y, float tx_h, int max_dist) {
         float* elev = reinterpret_cast<float*>(elev_ptr);
         return calculate_viewshed(elev, width, height, tx_x, tx_y, tx_h, max_dist);
     }));
-        
-    // Wait, Prompt Set 2/3 implies we might just export standalone functions.
-    // "Call the C++ function calculate_viewshed()."
-    // Embind:
+    
+    // RF Coverage (ITM-based propagation)
+    function("calculate_rf_coverage", optional_override([](
+        uintptr_t elev_ptr,
+        int width,
+        int height,
+        int tx_x,
+        int tx_y,
+        float tx_h,
+        float freq_mhz,
+        float tx_power_dbm,
+        float tx_gain_dbi,
+        float rx_gain_dbi,
+        float rx_sensitivity,
+        int max_dist,
+        float gsd_meters
+    ) {
+        float* elev = reinterpret_cast<float*>(elev_ptr);
+        return calculate_rf_coverage(
+            elev, width, height, tx_x, tx_y, tx_h,
+            freq_mhz, tx_power_dbm, tx_gain_dbi, rx_gain_dbi,
+            rx_sensitivity, max_dist, gsd_meters
+        );
+    }));
 
 }

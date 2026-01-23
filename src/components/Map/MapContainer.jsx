@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { MapContainer, TileLayer, ImageOverlay, Marker, Popup } from 'react-leaflet';
+import React, { useState, useEffect } from 'react';
+import { MapContainer, TileLayer, ImageOverlay, Marker, Popup, Rectangle } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import LinkLayer from './LinkLayer';
@@ -11,7 +11,10 @@ import { DEVICE_PRESETS } from '../../data/presets';
 import * as turf from '@turf/turf';
 import DeckGLOverlay from './DeckGLOverlay';
 import WasmViewshedLayer from './WasmViewshedLayer';
+import { ScatterplotLayer } from '@deck.gl/layers';
+import RFCoverageLayer from './RFCoverageLayer';
 import { useViewshedTool } from '../../hooks/useViewshedTool';
+import { useRFCoverageTool } from '../../hooks/useRFCoverageTool';
 import BatchNodesPanel from './BatchNodesPanel';
 
 // Fix for default marker icon issues in React Leaflet
@@ -29,18 +32,33 @@ L.Marker.prototype.options.icon = DefaultIcon;
 
 import { useMapEvents, useMap } from 'react-leaflet';
 
-const ViewshedClickHandler = ({ active, runAnalysis, setObserver }) => {
+const CoverageClickHandler = ({ mode, runViewshed, runRFCoverage, setViewshedObserver, setRfObserver, rfContext }) => {
     useMapEvents({
         click(e) {
-            if (active) {
+            if (mode === 'viewshed' || mode === 'rf_coverage') {
                 const { lat, lng } = e.latlng;
                 
-                // Set observer immediately for UI feedback
-                setObserver({ lat, lng, height: 2.0 });
+                if (mode === 'viewshed') {
+                    setViewshedObserver({ lat, lng, height: 2.0 });
+                    // Run simple viewshed (25km radius)
+                    runViewshed(lat, lng, 2.0, 25000);
+                } else if (mode === 'rf_coverage') {
+                    const h = rfContext.antennaHeight || 5.0;
+                    setRfObserver({ lat, lng, height: h });
 
-                // Run Wasm Analysis
-                // Default props for now
-                runAnalysis(lat, lng, 2.0, 5000); 
+                    const rfParams = {
+                        freq: rfContext.freq,
+                        txPower: rfContext.txPower,
+                        txGain: rfContext.antennaGain,
+                        rxGain: 2.15, // Default RX (dipole)
+                        rxSensitivity: -120,
+                        bw: rfContext.bw,
+                        sf: rfContext.sf,
+                        cr: rfContext.cr
+                    };
+                    
+                    runRFCoverage(lat, lng, h, 25000, rfParams);
+                }
             }
         }
     });
@@ -60,16 +78,17 @@ const BatchNodesPanelWrapper = ({ nodes, selectedNodes, onClear, onNodeSelect })
 
 const MapComponent = () => {
   // Default Map Center (Portland, OR)
-  const defaultLat = parseFloat(import.meta.env.VITE_MAP_LAT) || 45.5152;
-  const defaultLng = parseFloat(import.meta.env.VITE_MAP_LNG) || -122.6784;
+  const defaultLat = 45.5152;
+  const defaultLng = -122.6784;
   const position = [defaultLat, defaultLng];
 
   // Lifted State
   const [nodes, setNodes] = useState([]); 
   const [linkStats, setLinkStats] = useState({ minClearance: 0, isObstructed: false, loading: false });
   const [coverageOverlay, setCoverageOverlay] = useState(null); // { url, bounds }
-  const [toolMode, setToolMode] = useState('link'); // 'link', 'optimize', 'viewshed', 'none'
+  const [toolMode, setToolMode] = useState('link'); // 'link', 'optimize', 'viewshed', 'rf_coverage', 'none'
   const [viewshedObserver, setViewshedObserver] = useState(null); // Single Point for Viewshed Tool
+  const [rfObserver, setRfObserver] = useState(null); // Single Point for RF Coverage Tool
   const [isLinkLocked, setIsLinkLocked] = useState(false); // Default unlocked
   const [selectedBatchNodes, setSelectedBatchNodes] = useState([]); // Track selected batch nodes for linking: [{ id, role: 'TX' | 'RX' }]
   
@@ -80,10 +99,13 @@ const MapComponent = () => {
   });
 
   // Wasm Viewshed Tool Hook
-  const { runAnalysis, resultLayer, isCalculating } = useViewshedTool(toolMode === 'viewshed');
+  const { runAnalysis, resultLayer, isCalculating, clear: clearViewshed } = useViewshedTool(toolMode === 'viewshed');
+  
+  // RF Coverage Tool Hook
+  const { runAnalysis: runRFAnalysis, resultLayer: rfResultLayer, isCalculating: isRFCalculating, clear: clearRFCoverage } = useRFCoverageTool(toolMode === 'rf_coverage');
   
   // Calculate Budget at container level for Panel
-  const { txPower: proxyTx, antennaGain: proxyGain, freq, sf, bw, cableLoss, units, mapStyle, batchNodes, showBatchPanel, setShowBatchPanel, setBatchNodes, setEditMode, nodeConfigs } = useRF();
+  const { txPower: proxyTx, antennaGain: proxyGain, freq, sf, cr, bw, antennaHeight, cableLoss, units, mapStyle, batchNodes, showBatchPanel, setShowBatchPanel, setBatchNodes, setEditMode, nodeConfigs, recalcTimestamp } = useRF();
   
   // Map Configs
   const MAP_STYLES = {
@@ -116,7 +138,19 @@ const MapComponent = () => {
       }
   };
 
-  const currentStyle = MAP_STYLES[mapStyle] || MAP_STYLES.dark;
+  const currentStyle = MAP_STYLES[mapStyle] || MAP_STYLES.dark_green;
+
+  // Trigger RF Recalculation on Parameter Change (via 'Update Calculation' button)
+  useEffect(() => {
+      if (recalcTimestamp && toolMode === 'rf_coverage' && rfObserver) {
+          const { lat, lng } = rfObserver;
+          console.log("Triggering RF Recalculation due to param update");
+          const rfParams = {
+            freq, txPower: proxyTx, txGain: proxyGain, rxGain: 2.15, rxSensitivity: -120, bw, sf, cr
+          };
+          runRFAnalysis(lat, lng, rfObserver.height, 25000, rfParams);
+      }
+  }, [recalcTimestamp]);
 
   let budget = null;
   let distance = 0;
@@ -167,6 +201,7 @@ const MapComponent = () => {
       setLinkStats({ minClearance: 0, isObstructed: false, loading: false });
       setCoverageOverlay(null);
       setViewshedObserver(null);
+      setRfObserver(null);
       setSelectedBatchNodes([]); // Clear batch node selections
   };
 
@@ -175,29 +210,112 @@ const MapComponent = () => {
   
   // Viewshed Layer (Only active in 'viewshed' mode)
   if (toolMode === 'viewshed' && resultLayer && resultLayer.data) {
-      // Create ImageData or similar for the bitmap
-      // resultLayer.data is Uint8Array
-      // We need to convert it to a format deck.gl accepts.
-      // Fastest: Create ImageData
-      const { width, height, data } = resultLayer;
-      // We need RGBA for standard ImageData? Or just passing typed array might fail if not formatted?
-      // Actually, BitmapLayer supports `image` as ImageData.
-      // Let's pack R channel.
+      // resultLayer is now the single stitched viewshed (768x768 or similar)
+      const { width, height, data, bounds } = resultLayer;
+      
       const rgbaData = new Uint8ClampedArray(width * height * 4);
       for (let i = 0; i < width * height; i++) {
           const val = data[i];
           rgbaData[i * 4] = val;     // R
           rgbaData[i * 4 + 1] = 0;   // G
           rgbaData[i * 4 + 2] = 0;   // B
-          rgbaData[i * 4 + 3] = 255; // A (Opacity handled in shader or here)
+          rgbaData[i * 4 + 3] = 255; // A
       }
       const imageData = new ImageData(rgbaData, width, height);
-      
+
+      console.log(`[MapContainer] Adding Stitched Viewshed Layer. Bounds:`, bounds);
       deckLayers.push(new WasmViewshedLayer({
-          id: 'wasm-viewshed-layer',
+          id: 'wasm-viewshed-layer-stitched',
           image: imageData,
-          bounds: [resultLayer.bounds.west, resultLayer.bounds.south, resultLayer.bounds.east, resultLayer.bounds.north],
+          bounds: [bounds.west, bounds.south, bounds.east, bounds.north],
           opacity: 0.6
+      }));
+  }
+
+  // Viewshed Bounding Box (Visual debugging)
+  let viewshedBounds = null;
+  if(toolMode === 'viewshed' && resultLayer && resultLayer.bounds) {
+      const { west, south, east, north } = resultLayer.bounds;
+      viewshedBounds = [[north, west], [south, east]];
+  }
+  
+  // RF Coverage Layer (Only active in 'rf_coverage' mode)
+  let rfBounds = null;
+  if (toolMode === 'rf_coverage' && rfResultLayer && rfResultLayer.data) {
+      const { width, height, data, rfParams, bounds } = rfResultLayer;
+      
+      // Store bounds for debug rect
+      const { west, south, east, north } = bounds;
+      rfBounds = [[north, west], [south, east]];
+      
+      // Generate Dots (Scatterplot) instead of Bitmap
+      const points = [];
+      const stride = 4; // Balanced performance/detail
+      
+      // Calculate step sizes in degrees
+      const latStep = (north - south) / height;
+      const lonStep = (east - west) / width;
+      
+      // Noise floor for SNR calc
+      // BW in Config is kHz (e.g. 62.5) -> convert to Hz
+      const bwHz = (rfParams?.bw || 125) * 1000; 
+      // Thermal Noise Floor = -174 + 10 * log10(BW_Hz)
+      const noiseFloor = -174 + 10 * Math.log10(bwHz);
+      const sensitivity = rfParams?.rxSensitivity || -120;
+      
+      for (let y = 0; y < height; y += stride) {
+          for (let x = 0; x < width; x += stride) {
+              const i = y * width + x;
+              const rssi = data[i];
+              
+              // Filter empty/invalid values
+              if (rssi < -500) continue;
+              
+              // Filter below visualization floor (-150 dBm)
+              if (rssi < -150) continue;
+
+              const snr = rssi - noiseFloor;
+              
+              // Calculate Lat/Lon center
+              const pLat = north - (y + 0.5) * latStep;
+              const pLon = west + (x + 0.5) * lonStep;
+              
+              points.push({
+                  position: [pLon, pLat],
+                  rssi,
+                  snr
+              });
+          }
+      }
+      
+      deckLayers.push(new ScatterplotLayer({
+          id: 'rf-coverage-dots',
+          data: points,
+          pickable: true,
+          opacity: 0.8,
+          stroked: true,
+          filled: true,
+          radiusScale: 1,
+          radiusMinPixels: 4,
+          radiusMaxPixels: 10,
+          lineWidthMinPixels: 1,
+          getPosition: d => d.position,
+          getFillColor: d => {
+              // Color Scale based on SNR
+              // > 10dB: Green [0, 200, 0]
+              // 0-10dB: Yellow [200, 200, 0]
+              // < 0dB: Red [200, 0, 0]
+              // Below Sensitivity: Grey/Blue [100, 100, 100]
+              
+              if (d.rssi < sensitivity) return [50, 50, 80, 150]; // Weak signal
+              
+              if (d.snr > 10) return [0, 255, 65];   // Excellent
+              if (d.snr > 5)  return [100, 255, 0];  // Good
+              if (d.snr > 0)  return [255, 200, 0];  // Fair
+              return [255, 50, 50];                  // Poor
+          },
+          getLineColor: [0, 0, 0, 100],
+          // Add tooltip interaction if we wanted
       }));
   }
 
@@ -208,10 +326,13 @@ const MapComponent = () => {
         zoom={13} 
         style={{ height: '100%', width: '100%', background: '#0a0a0f' }}
       >
-        <ViewshedClickHandler 
-            active={toolMode === 'viewshed'} 
-            setObserver={setViewshedObserver} 
-            runAnalysis={runAnalysis}
+        <CoverageClickHandler 
+            mode={toolMode}
+            runViewshed={runAnalysis}
+            runRFCoverage={runRFAnalysis}
+            setViewshedObserver={setViewshedObserver}
+            setRfObserver={setRfObserver}
+            rfContext={{ freq, txPower: proxyTx, antennaGain: proxyGain, bw, sf, cr, antennaHeight }}
         />
         <TileLayer
           key={mapStyle} // Force re-mount on style change to clear classes
@@ -248,7 +369,7 @@ const MapComponent = () => {
                     dragend: (e) => {
                          const { lat, lng } = e.target.getLatLng();
                          // Fetch Elevation again on drag end
-                        fetch('http://localhost:5001/get-elevation', {
+                        fetch('/api/get-elevation', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ lat, lon: lng })
@@ -260,6 +381,9 @@ const MapComponent = () => {
                             const newObserver = { lat, lng, height: elevation + 2.0 };
                             console.log("Viewshed Debug - Setting Observer:", newObserver);
                             setViewshedObserver(newObserver);
+                            
+                            // Trigger Recalculation
+                            runAnalysis(lat, lng, elevation + 2.0, 25000);
                         })
                         .catch(err => {
                              console.error("Failed to fetch height", err);
@@ -271,6 +395,64 @@ const MapComponent = () => {
                 <Popup>Allowed Observer Location</Popup>
             </Marker>
         )}
+
+        {/* Visual Marker for RF Coverage Transmitter */}
+        {toolMode === 'rf_coverage' && rfObserver && (
+            <Marker 
+                position={rfObserver} 
+                draggable={true}
+                eventHandlers={{
+                    dragend: (e) => {
+                         const { lat, lng } = e.target.getLatLng();
+                         
+                         // Update position and recalculate
+                         fetch('/api/get-elevation', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ lat, lon: lng })
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            const elevation = data.elevation || 0;
+                            const h = antennaHeight || 5.0; // Keep relative height from ground
+                            
+                            setRfObserver({ lat, lng, height: h });
+                            
+                            const rfParams = {
+                                freq,
+                                txPower: proxyTx, 
+                                txGain: proxyGain, 
+                                rxGain: 2.15,
+                                rxSensitivity: -120,
+                                bw, sf, cr
+                            };
+                            
+                            runRFAnalysis(lat, lng, h, 25000, rfParams);
+                        });
+                    }
+                }}
+            >
+                <Popup>RF Transmitter</Popup>
+            </Marker>
+        )}
+
+        
+        {/* Viewshed Bounds Rectangle */}
+        {viewshedBounds && (
+            <Rectangle 
+                bounds={viewshedBounds} 
+                pathOptions={{ color: 'red', dashArray: '10, 10', fill: false, weight: 2 }} 
+            />
+        )}
+        
+        {/* RF Coverage Bounds Rectangle */}
+        {rfBounds && (
+            <Rectangle 
+                bounds={rfBounds} 
+                pathOptions={{ color: 'orange', dashArray: '5, 5', fill: false, weight: 2 }} 
+            />
+        )}
+        
         <OptimizationLayer active={toolMode === 'optimize'} setActive={(active) => setToolMode(active ? 'optimize' : 'none')} />
         
         {/* Batch Nodes Rendering */}
@@ -429,7 +611,7 @@ const MapComponent = () => {
                 }
             }}
             style={{
-                display: 'none', // Hidden - requires backend server at localhost:5001
+                // display: 'none', // Hidden - requires backend server at localhost:5001
                 background: toolMode === 'viewshed' ? '#22ff00' : '#222',
                 color: toolMode === 'viewshed' ? '#000' : '#fff',
                 border: '1px solid #444',
@@ -441,6 +623,30 @@ const MapComponent = () => {
             }}
           >
             Viewshed
+          </button>
+          
+          <button 
+            onClick={() => {
+                if(toolMode === 'rf_coverage') {
+                    resetToolState();
+                    setToolMode('none');
+                } else {
+                    resetToolState();
+                    setToolMode('rf_coverage');
+                }
+            }}
+            style={{
+                background: toolMode === 'rf_coverage' ? '#ff6b00' : '#222',
+                color: toolMode === 'rf_coverage' ? '#000' : '#fff',
+                border: '1px solid #444',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.5)'
+            }}
+          >
+            RF Simulator
           </button>
       </div>
       
@@ -504,6 +710,62 @@ const MapComponent = () => {
               </button>
           </div>
       )}
+      
+      {/* Clear Viewshed Button */}
+      {toolMode === 'viewshed' && viewshedObserver && (
+          <div style={{ position: 'absolute', top: 65, left: 70, zIndex: 1000 }}>
+              <button 
+                  onClick={() => {
+                      setViewshedObserver(null);
+                      clearViewshed();
+                  }}
+                  style={{
+                      background: 'rgba(255, 50, 50, 0.9)',
+                      color: '#fff',
+                      border: '1px solid rgba(255, 100, 100, 0.5)',
+                      padding: '6px 12px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '0.85em',
+                      fontWeight: 600,
+                      boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
+                      transition: 'all 0.2s ease'
+                  }}
+                  onMouseOver={(e) => e.target.style.background = 'rgba(255, 50, 50, 1)'}
+                  onMouseOut={(e) => e.target.style.background = 'rgba(255, 50, 50, 0.9)'}
+              >
+                  Clear Viewshed
+              </button>
+          </div>
+      )}
+      
+      {/* Clear RF Coverage Button */}
+      {toolMode === 'rf_coverage' && rfObserver && (
+          <div style={{ position: 'absolute', top: 65, left: 70, zIndex: 1000 }}>
+              <button 
+                  onClick={() => {
+                      setRfObserver(null);
+                      clearRFCoverage();
+                  }}
+                  style={{
+                      background: 'rgba(255, 50, 50, 0.9)',
+                      color: '#fff',
+                      border: '1px solid rgba(255, 100, 100, 0.5)',
+                      padding: '6px 12px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '0.85em',
+                      fontWeight: 600,
+                      boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
+                      transition: 'all 0.2s ease'
+                  }}
+                  onMouseOver={(e) => e.target.style.background = 'rgba(255, 50, 50, 1)'}
+                  onMouseOut={(e) => e.target.style.background = 'rgba(255, 50, 50, 0.9)'}
+              >
+                  Clear RF Coverage
+              </button>
+          </div>
+      )}
 
       {/* Overlay Panel */}
       {nodes.length === 2 && (
@@ -516,6 +778,43 @@ const MapComponent = () => {
               propagationSettings={propagationSettings}
               setPropagationSettings={setPropagationSettings}
           />
+      )}
+      
+      {/* RF Coverage Loading Status */}
+      {isRFCalculating && (
+          <div style={{
+              position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+              background: 'rgba(10, 10, 15, 0.75)', 
+              color: '#ff6b00', 
+              padding: '40px 60px', 
+              borderRadius: '24px', 
+              border: '1px solid rgba(255, 107, 0, 0.2)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 107, 0, 0.1)',
+              zIndex: 2000,
+              textAlign: 'center',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '16px',
+              minWidth: '300px'
+          }}>
+              <div className="spinner" style={{
+                  width: '48px', height: '48px', 
+                  border: '3px solid rgba(255, 107, 0, 0.1)', 
+                  borderTop: '3px solid #ff6b00', 
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                  boxShadow: '0 0 15px rgba(255, 107, 0, 0.3)'
+              }}></div>
+              <style>{`
+                  @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                  @keyframes pulse-text { 0%, 100% { opacity: 1; } 50% { opacity: 0.7); } }
+              `}</style>
+              <div style={{ fontSize: '1.2em', fontWeight: '600', letterSpacing: '1px', animation: 'pulse-text 2s ease-in-out infinite' }}>CALCULATING RF COVERAGE</div>
+              <div style={{ fontSize: '0.9em', color: 'rgba(255, 255, 255, 0.6)' }}>Running ITM propagation model...</div>
+          </div>
       )}
       
     </div>
