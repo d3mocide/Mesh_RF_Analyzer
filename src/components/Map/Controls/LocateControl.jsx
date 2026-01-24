@@ -4,6 +4,13 @@ import { useMap } from 'react-leaflet';
 const LocateControl = () => {
     const map = useMap();
     const [loading, setLoading] = useState(false);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    React.useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const handleLocate = (e) => {
         e.preventDefault();
@@ -33,7 +40,13 @@ const LocateControl = () => {
     };
 
     return (
-        <div style={{ position: 'absolute', bottom: '110px', right: '11px', zIndex: 1000 }}>
+        <div style={{ 
+            position: 'absolute', 
+            top: isMobile ? '140px' : 'auto', 
+            bottom: isMobile ? 'auto' : '110px', 
+            right: isMobile ? '10px' : '11px', 
+            zIndex: 1000 
+        }}>
              <button
                 onClick={handleLocate}
                 title="Locate Me"
