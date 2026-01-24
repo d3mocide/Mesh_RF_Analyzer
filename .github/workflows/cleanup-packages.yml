@@ -13,17 +13,17 @@ jobs:
     steps:
       - name: Bulk Delete Untagged Images
         env:
-          GITHUB_TOKEN: ${{ secrets.GHCR_DELETE_PAT }}
+          # Use GH_TOKEN explicitly for the CLI to avoid ambiguity
+          GH_TOKEN: ${{ secrets.GHCR_DELETE_PAT }}
         run: |
-          # Robust cleanup script
-          # 1. Detects if owner is User or Org
-          # 2. Iterates through packages: meshrf, meshrf-rf-engine, meshrf-opentopodata
+          # Disable immediate exit to handle errors manually
+          set +e
 
           PKG_NAMES=("meshrf" "meshrf-rf-engine" "meshrf-opentopodata")
           OWNER="${{ github.repository_owner }}"
 
           echo "Checking owner type for: $OWNER"
-          TYPE=$(gh api "users/$OWNER" --jq '.type' || echo "Organization")
+          TYPE=$(gh api "users/$OWNER" --jq '.type' 2>/dev/null || echo "Organization")
           echo "Owner Type: $TYPE"
 
           if [[ "$TYPE" == "Organization" ]]; then
@@ -42,10 +42,9 @@ jobs:
             for batch in {1..10}; do
                echo "Processing Batch $batch..."
                
-               # List versions (using specific endpoint)
-               # We verify 'metadata.container.tags.length == 0' to ensure safety
+               # Fetch IDs
                IDS=$(gh api "$ENDPOINT/packages/container/$PKG/versions?per_page=100" \
-                 --jq '.[] | select(.metadata.container.tags | length == 0) | .id' || echo "")
+                 --jq '.[] | select(.metadata.container.tags | length == 0) | .id' 2>/dev/null)
                
                if [ -z "$IDS" ]; then
                  echo "✅ No more untagged versions found for $PKG."
@@ -54,14 +53,24 @@ jobs:
                
                count=0
                for ID in $IDS; do
-                 echo "Deleting version ID: $ID"
-                 # Capture error output
-                 if ! gh api --method DELETE "$ENDPOINT/packages/container/$PKG/versions/$ID"; then
-                    echo "❌ Failed to delete $ID. You may need a PAT with 'delete:packages' scope if this is a personal account."
+                 echo "Attempting to delete version ID: $ID"
+                 
+                 # Capture output and exit code
+                 OUTPUT=$(gh api --method DELETE "$ENDPOINT/packages/container/$PKG/versions/$ID" 2>&1)
+                 EXIT_CODE=$?
+                 
+                 if [ $EXIT_CODE -ne 0 ]; then
+                    echo "❌ Failed to delete $ID. Exit Code: $EXIT_CODE"
+                    echo "   Error Output: $OUTPUT"
+                    echo "   Troubleshooting: Ensure GHCR_DELETE_PAT has 'delete:packages' scope."
                  else
+                    echo "   Deleted successfully."
                     ((count++))
                  fi
                done
-               echo "Deleted $count images in this batch."
+               echo "batch finished: Processed $count successful deletions."
             done
           done
+
+          # Always succeed the step so we can see the logs
+          exit 0
