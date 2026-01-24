@@ -1,5 +1,18 @@
 # Release Notes
 
+## v1.7.8 - Mobile UI Refinements
+
+This patch release addresses critical UI layout issues on mobile devices, ensuring controls are accessible and overlays behave correctly.
+
+### 📱 Mobile Experience
+
+- **Control Layout**: Relocated Zoom and "Find Me" controls to the **top-right** on mobile to prevent overlap with the top menu bar.
+- **Viewport Height**: Switched panel height logic to `dvh` (Dynamic Viewport Height) to prevent content cutoff by browser address bars.
+- **Bug Fixes**:
+  - **Tooltip Persistence**: Fixed a bug where the "Elevation Scan Active" tooltip would fail to disappear after results were shown.
+
+---
+
 ## v1.7.7 - Security Hardening & DevOps
 
 This release focuses on hardening the production environment against malicious scanners, polishing the startup experience, and significantly optimizing the CI/CD pipeline.

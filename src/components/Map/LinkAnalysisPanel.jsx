@@ -161,7 +161,7 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
             left: isMobile ? '0' : 'auto',
             width: isMobile ? '100%' : `${panelSize.width}px`,
             height: isMobile ? 'auto' : `${panelSize.height}px`,
-            maxHeight: isMobile ? (isMinimized ? '72px' : '85vh') : 'none',
+            maxHeight: isMobile ? (isMinimized ? '72px' : '85dvh') : 'none',
             background: 'rgba(10, 10, 15, 0.98)',
             backdropFilter: 'blur(15px)',
             border: isMobile ? 'none' : '1px solid #444',

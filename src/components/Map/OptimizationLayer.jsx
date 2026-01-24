@@ -88,24 +88,27 @@ const OptimizationLayer = ({ active, setActive, onStateUpdate }) => {
         // Create bounds
         const bounds = L.latLngBounds(startPoint, finalEndPoint);
         
+        // Track the final nodes to ensure parent gets fresh data (React state is async)
+        let finalGhostNodes = ghostNodes; 
+
         try {
             const result = await optimizeLocation(bounds, freq, antennaHeight);
             if (result.status === 'success') {
                 setGhostNodes(result.locations);
-                setShowResults(true); // Auto-show results
-                // Success popup removed as requested by user
+                finalGhostNodes = result.locations; // Update local ref for sync
+                setShowResults(true); 
             } else {
                 setNotification({ message: result.message || "Scan failed. Server returned an error.", type: 'error' });
-                 setLocked(false); // Enable retry
+                 setLocked(false); 
             }
         } catch (err) {
             console.error(err);
             setNotification({ message: "Scan failed. Please try again.", type: 'error' });
-            setLocked(false); // Enable retry
+            setLocked(false); 
         } finally {
             setLoading(false);
-            // Manual sync after optimization state changes
-            onStateUpdate?.({ startPoint, loading: false, ghostNodes: ghostNodes }); 
+            // Manual sync with correct data
+            onStateUpdate?.({ startPoint, loading: false, ghostNodes: finalGhostNodes }); 
         }
     };
     

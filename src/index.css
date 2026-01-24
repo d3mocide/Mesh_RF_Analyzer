@@ -89,3 +89,11 @@
 .dark-mode-tiles {
   filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
 }
+
+/* Mobile Layout Fixes */
+@media (max-width: 768px) {
+  /* Push Zoom Control down to avoid top toolbar overlap */
+  .leaflet-top.leaflet-right {
+    margin-top: 60px;
+  }
+}
