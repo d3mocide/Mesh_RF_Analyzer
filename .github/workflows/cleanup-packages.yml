@@ -15,26 +15,37 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Robust cleanup script for stubborn untagged images
-          # Iterates through packages: meshrf, meshrf-rf-engine, meshrf-opentopodata
+          # Robust cleanup script
+          # 1. Detects if owner is User or Org
+          # 2. Iterates through packages: meshrf, meshrf-rf-engine, meshrf-opentopodata
 
           PKG_NAMES=("meshrf" "meshrf-rf-engine" "meshrf-opentopodata")
-          USER_NAME="${{ github.repository_owner }}"
+          OWNER="${{ github.repository_owner }}"
+
+          echo "Checking owner type for: $OWNER"
+          TYPE=$(gh api "users/$OWNER" --jq '.type' || echo "Organization")
+          echo "Owner Type: $TYPE"
+
+          if [[ "$TYPE" == "Organization" ]]; then
+            ENDPOINT="orgs/$OWNER"
+          else
+            ENDPOINT="users/$OWNER"
+          fi
+
+          echo "Using endpoint base: $ENDPOINT"
 
           for PKG in "${PKG_NAMES[@]}"; do
             echo "----------------------------------------"
             echo "Cleaning package: $PKG"
             echo "----------------------------------------"
             
-            # We use a loop to handle pagination limits (batch processing)
-            # Run up to 10 batches to avoid infinite loops, deleting up to 1000 versions per run
             for batch in {1..10}; do
                echo "Processing Batch $batch..."
                
-               # Fetch up to 100 untagged versions (API default per_page is often 30, max 100)
+               # List versions (using specific endpoint)
                # We verify 'metadata.container.tags.length == 0' to ensure safety
-               IDS=$(gh api "users/$USER_NAME/packages/container/$PKG/versions?per_page=100" \
-                 --jq '.[] | select(.metadata.container.tags | length == 0) | .id')
+               IDS=$(gh api "$ENDPOINT/packages/container/$PKG/versions?per_page=100" \
+                 --jq '.[] | select(.metadata.container.tags | length == 0) | .id' || echo "")
                
                if [ -z "$IDS" ]; then
                  echo "✅ No more untagged versions found for $PKG."
@@ -44,8 +55,12 @@ jobs:
                count=0
                for ID in $IDS; do
                  echo "Deleting version ID: $ID"
-                 gh api --method DELETE "users/$USER_NAME/packages/container/$PKG/versions/$ID" || echo "Failed to delete $ID"
-                 ((count++))
+                 # Capture error output
+                 if ! gh api --method DELETE "$ENDPOINT/packages/container/$PKG/versions/$ID"; then
+                    echo "❌ Failed to delete $ID. You may need a PAT with 'delete:packages' scope if this is a personal account."
+                 else
+                    ((count++))
+                 fi
                done
                echo "Deleted $count images in this batch."
             done
