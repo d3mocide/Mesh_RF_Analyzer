@@ -166,7 +166,7 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
             borderTop: isMobile ? '1px solid #555' : '1px solid #444',
             borderRadius: isMobile ? '20px 20px 0 0' : '8px',
             padding: '16px',
-            paddingBottom: isMobile ? '32px' : '16px', // Extra padding for mobile gestures
+            paddingBottom: isMobile ? 'calc(16px + env(safe-area-inset-bottom))' : '16px',
             color: '#eee',
             zIndex: 1000, 
             boxShadow: '0 -8px 32px rgba(0,0,0,0.8)',

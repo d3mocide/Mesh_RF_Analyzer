@@ -1,5 +1,24 @@
 # Release Notes
 
+## v1.7.6 - Mobile PWA & iOS Polish
+
+This release transforms meshRF into a fully installable **Progressive Web App (PWA)** and resolves layout issues on iOS devices, making it a true mobile-first field tool.
+
+### 📱 Progressive Web App (PWA)
+
+- **Installable**: You can now install meshRF to your home screen on Android, iOS, Windows, and macOS.
+- **Offline Shell**: The app shell now caches locally, allowing instant loading even in poor network conditions (API requests still require connection).
+- **Dark Mode Start**: Eliminated the "White Screen Flash" on startup by injecting critical dark-theme CSS and a neon loader into the initial HTML payload.
+- **Premium Icons**: Added high-fidelity, rounded-corner (squircle) icons for a native look on modern operating systems.
+
+### 🍎 iOS & Safari Fixes
+
+- **Viewport Logic**: Updated to use `dvh` (Dynamic Viewport Height) to properly handle the Safari bottom address bar, preventing the UI from being cut off.
+- **Safe Area**: Added intelligent padding to the **Link Analysis Panel** to avoid conflict with the iPhone home indicator swipe bar.
+- **Viewport Fit**: Enabled `viewport-fit=cover` to utilize the full screen real estate on notched devices.
+
+---
+
 ## v1.7.5 - UI Polish
 
 Quick follow-up patch to improve the usability of the restored guidance system.

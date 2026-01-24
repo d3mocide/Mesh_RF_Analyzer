@@ -18,7 +18,6 @@ const BatchProcessing = () => {
     const [showHelp, setShowHelp] = useState(false);
     const fileInputRef = useRef(null);
 
-    // Auto-close batch notification after 2 seconds
     useEffect(() => {
         if (batchNotification) {
             const timer = setTimeout(() => {
@@ -151,9 +150,6 @@ const BatchProcessing = () => {
                                 });
                                 setBatchNodes(newNodes);
                                 setShowBatchPanel(true);
-                                // Success popup removed as requested by user
-
-                                // Reset file input to allow re-upload of same file
                                 if (fileInputRef.current) {
                                     fileInputRef.current.value = '';
                                 }

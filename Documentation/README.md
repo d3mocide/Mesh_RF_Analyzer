@@ -17,6 +17,9 @@ Welcome to the MeshRF Documentation site. MeshRF is a powerful web-based toolset
 2. **Interact with the Map**: Click, drag, and drop markers to define your locations.
 3. **Analyze Results**: View real-time charts, heatmaps, and stats panels.
 
+> [!IMPORTANT]
+> Selecting a different tool from the toolbar (e.g., switching from Link Analysis to Viewshed) will clear the current analysis markers and results from the map. However, your **Batch Nodes** will remain visible until you click **"Clear All Nodes"**.
+
 ## How it Works
 
 MeshRF combines high-resolution terrain data (DEM) with specialized RF propagation models (Free Space Path Loss, Okumura-Hata) to provide accurate predictions for wireless network performance.
