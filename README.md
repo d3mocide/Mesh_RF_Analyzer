@@ -1,4 +1,4 @@
-# meshRF 📡 v1.7.4
+# meshRF 📡 v1.7.5
 
 A professional-grade RF propagation and link analysis tool designed for LoRa Mesh networks (Meshtastic, Reticulum, Sidewinder). Built with **React**, **Leaflet**, and a high-fidelity **Geodetic Physics Engine**.
 

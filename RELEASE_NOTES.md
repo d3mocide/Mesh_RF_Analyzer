@@ -1,5 +1,15 @@
 # Release Notes
 
+## v1.7.5 - UI Polish
+
+Quick follow-up patch to improve the usability of the restored guidance system.
+
+### 🎨 UI Improvements
+
+- **Tooltip Positioning**: Moved all context-aware help banners to the **bottom-center** of the screen. This prevents them from obscuring the top toolbar and ensures a consistent experience across desktop and mobile.
+
+---
+
 ## v1.7.4 - Bug Fix: Tooltip Restoration
 
 This patch restores the Context-Aware Guidance tooltips ("Green/Purple" banners) which were inadvertently hidden during the refactoring process. The UI is now fully functional with all help systems active.

@@ -20,8 +20,8 @@ const GuidanceOverlays = ({
         {toolMode === 'link' && nodes.length < 2 && (
             <div style={{
                 position: 'absolute',
-                top: isMobile ? 'auto' : '80px',
-                bottom: isMobile ? '40px' : 'auto',
+                top: 'auto',
+                bottom: '40px',
                 left: '50%',
                 transform: 'translateX(-50%)',
                 zIndex: 1000,
@@ -101,8 +101,8 @@ const GuidanceOverlays = ({
         {toolMode === 'optimize' && !optimizeState.loading && optimizeState.ghostNodes?.length === 0 && (
             <div style={{
                 position: 'absolute',
-                top: isMobile ? 'auto' : '80px',
-                bottom: isMobile ? '40px' : 'auto',
+                top: 'auto',
+                bottom: '40px',
                 left: '50%',
                 transform: 'translateX(-50%)',
                 zIndex: 1000,
@@ -181,8 +181,8 @@ const GuidanceOverlays = ({
         {((toolMode === 'viewshed' && !viewshedObserver) || (toolMode === 'rf_coverage' && !rfObserver)) && (
             <div style={{
                 position: 'absolute',
-                top: isMobile ? 'auto' : '80px',
-                bottom: isMobile ? '40px' : 'auto',
+                top: 'auto',
+                bottom: '40px',
                 left: '50%',
                 transform: 'translateX(-50%)',
                 zIndex: 1000,
