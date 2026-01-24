@@ -1,4 +1,4 @@
-# meshRF 📡 v1.7.5
+# meshRF 📡 v1.7.6
 
 A professional-grade RF propagation and link analysis tool designed for LoRa Mesh networks (Meshtastic, Reticulum, Sidewinder). Built with **React**, **Leaflet**, and a high-fidelity **Geodetic Physics Engine**.
 
@@ -37,6 +37,15 @@ Detailed guides for specific tools:
 - [📖 interactions.md](./Documentation/interactions.md) - Tool workflows and "Locate Me".
 - [📖 batch-processing.md](./Documentation/batch-processing.md) - Bulk link analysis.
 - [📖 hardware-settings.md](./Documentation/hardware-settings.md) - Node configuration.
+- [📖 pwa-guide.md](./Documentation/pwa-guide.md) - Install on Desktop & Mobile.
+
+### 5. 📱 Progressive Web App (PWA)
+
+meshRF is fully installable on **Desktop (Chrome/Edge)** and **Mobile (iOS/Android)**.
+
+- **Offline Shell**: Loads instantly even without a network connection.
+- **Native Experience**: Runs in a standalone window without browser chrome.
+- **Dark Mode**: Optimized startup with no white flashes.
 
 ---
 
