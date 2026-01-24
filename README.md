@@ -113,3 +113,5 @@ MIT License. Free to use and modify.
 ## ⚠️ Disclaimer
 
 This tool is a simulation. Real-world RF propagation is affected by complex factors (interference, buildings, weather) not fully modeled here. Always verify with field testing.
+
+**AI Disclosure**: Segments of this codebase were developed with the assistance of advanced AI coding agents. While all code has been reviewed and tested, users should exercise standard due diligence when deploying in critical environments.

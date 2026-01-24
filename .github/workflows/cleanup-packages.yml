@@ -11,26 +11,42 @@ jobs:
     permissions:
       packages: write
     steps:
-      - name: Delete untagged images (Core App)
-        uses: actions/delete-package-versions@v5
-        with:
-          package-name: "meshrf"
-          package-type: "container"
-          min-versions-to-keep: 5
-          delete-only-untagged-versions: "true"
+      - name: Bulk Delete Untagged Images
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Robust cleanup script for stubborn untagged images
+          # Iterates through packages: meshrf, meshrf-rf-engine, meshrf-opentopodata
 
-      - name: Delete untagged images (RF Engine)
-        uses: actions/delete-package-versions@v5
-        with:
-          package-name: "meshrf-rf-engine"
-          package-type: "container"
-          min-versions-to-keep: 5
-          delete-only-untagged-versions: "true"
+          PKG_NAMES=("meshrf" "meshrf-rf-engine" "meshrf-opentopodata")
+          USER_NAME="${{ github.repository_owner }}"
 
-      - name: Delete untagged images (OpenTopoData)
-        uses: actions/delete-package-versions@v5
-        with:
-          package-name: "meshrf-opentopodata"
-          package-type: "container"
-          min-versions-to-keep: 2 # Keep fewer since it changes rarely
-          delete-only-untagged-versions: "true"
+          for PKG in "${PKG_NAMES[@]}"; do
+            echo "----------------------------------------"
+            echo "Cleaning package: $PKG"
+            echo "----------------------------------------"
+            
+            # We use a loop to handle pagination limits (batch processing)
+            # Run up to 10 batches to avoid infinite loops, deleting up to 1000 versions per run
+            for batch in {1..10}; do
+               echo "Processing Batch $batch..."
+               
+               # Fetch up to 100 untagged versions (API default per_page is often 30, max 100)
+               # We verify 'metadata.container.tags.length == 0' to ensure safety
+               IDS=$(gh api "users/$USER_NAME/packages/container/$PKG/versions?per_page=100" \
+                 --jq '.[] | select(.metadata.container.tags | length == 0) | .id')
+               
+               if [ -z "$IDS" ]; then
+                 echo "✅ No more untagged versions found for $PKG."
+                 break
+               fi
+               
+               count=0
+               for ID in $IDS; do
+                 echo "Deleting version ID: $ID"
+                 gh api --method DELETE "users/$USER_NAME/packages/container/$PKG/versions/$ID" || echo "Failed to delete $ID"
+                 ((count++))
+               done
+               echo "Deleted $count images in this batch."
+            done
+          done
