@@ -4,7 +4,7 @@ A professional-grade RF propagation and link analysis tool designed for LoRa Mes
 
 meshRF is designed for **mission-critical availability**. It operates with **zero external API dependencies** for elevation data, serving high-resolution terrain data directly from self-hosted containers. Currently we do rely on exteranl API's for map tiles but that will be updated soon as well for full offline use. (optional)
 
-![Link Analysis Demo](./public/meshrf-preview-1.5.png)
+![Link Analysis Demo](./public/meshrf-preview-1.7.3.png)
 
 ## ✨ Core Pillars
 
@@ -44,11 +44,11 @@ Detailed guides for specific tools:
 
 meshRF supports multiple propagation models to suit different environments:
 
-| Model                           | Best For          | Characteristics                                           |
-| :------------------------------ | :---------------- | :-------------------------------------------------------- |
-| **Free Space (FSPL)**           | Ideal LOS, Orbit  | Baseline physics, no terrain or environment effects.      |
-| **Okumura-Hata**                | Flat/Suburban     | Empirical model for urban/suburban. Assumes flat terrain. |
-| **ITM (Longley-Rice)** (IN DEV) | Irregular Terrain | **Recommended**. High-fidelity terrain-aware modeling.    |
+| Model                  | Best For          | Characteristics                                           |
+| :--------------------- | :---------------- | :-------------------------------------------------------- |
+| **Free Space (FSPL)**  | Ideal LOS, Orbit  | Baseline physics, no terrain or environment effects.      |
+| **Okumura-Hata**       | Flat/Suburban     | Empirical model for urban/suburban. Assumes flat terrain. |
+| **ITM (Longley-Rice)** | Irregular Terrain | **Recommended**. High-fidelity terrain-aware modeling.    |
 
 > [!TIP]
 > Use **ITM** for most terrestrial link analyses to account for hills and varying terrain heights. Use **Okumura-Hata** for quick city-wide surveys where buildings dominate over terrain.
