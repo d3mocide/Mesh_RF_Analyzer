@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: Bulk Delete Untagged Images
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GHCR_DELETE_PAT }}
         run: |
           # Robust cleanup script
           # 1. Detects if owner is User or Org
