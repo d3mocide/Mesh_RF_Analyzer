@@ -15,6 +15,7 @@ const BatchProcessing = () => {
     } = useRF();
 
     const [batchNotification, setBatchNotification] = useState(null); // { message, type }
+    const [showHelp, setShowHelp] = useState(false);
     const fileInputRef = useRef(null);
 
     // Auto-close batch notification after 2 seconds
@@ -45,8 +46,67 @@ const BatchProcessing = () => {
     };
 
     return (
-        <div style={sectionStyle}>
-            <h3 style={{fontSize: '1rem', color: '#fff', margin: '0 0 var(--spacing-sm) 0'}}>Batch Processing</h3>
+        <div style={{ ...sectionStyle, position: 'relative' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-sm)' }}>
+                <h3 style={{ fontSize: '1rem', color: '#fff', margin: 0 }}>Batch Processing</h3>
+                <div 
+                    onClick={() => setShowHelp(!showHelp)}
+                    style={{ 
+                        cursor: 'pointer', 
+                        color: 'var(--color-primary)', 
+                        fontSize: '14px', 
+                        padding: '4px',
+                        background: showHelp ? 'rgba(0, 175, 185, 0.1)' : 'transparent',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        alignItems: 'center'
+                    }}
+                >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                </div>
+            </div>
+
+            {/* Help Slide-down */}
+            {showHelp && (
+                <div style={{
+                    position: 'absolute',
+                    top: '32px',
+                    left: '0',
+                    right: '0',
+                    background: 'rgba(20, 25, 40, 0.98)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid var(--color-primary)',
+                    borderRadius: '8px',
+                    padding: '12px',
+                    zIndex: 1010,
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
+                    fontSize: '0.85em',
+                    lineHeight: '1.4',
+                    whiteSpace: 'normal',
+                    wordBreak: 'break-word',
+                    animation: 'slideDown 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}>
+                    <div style={{ color: 'var(--color-primary)', fontWeight: 'bold', marginBottom: '6px' }}>Batch Guide</div>
+                    <div style={{ color: '#ccc', marginBottom: '8px' }}>
+                        Perform link budget analysis for large groups of nodes simultaneously.
+                    </div>
+                    <ul style={{ paddingLeft: '18px', margin: '0 0 8px 0', color: '#bbb' }}>
+                        <li><strong>CSV Import:</strong> Upload a file with <code>Name, Lat, Lon</code>.</li>
+                        <li><strong>Mesh Report:</strong> Analyzes every possible point-to-point link between all loaded nodes.</li>
+                        <li><strong>Results:</strong> Detailed CSV including RSSI, Margin, and Clearance.</li>
+                    </ul>
+                    <button 
+                        onClick={() => setShowHelp(false)}
+                        style={{ marginTop: '10px', width: '100%', background: 'rgba(0, 175, 185, 0.1)', border: '1px solid var(--color-primary)', color: 'var(--color-primary)', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}
+                    >
+                        Got it
+                    </button>
+                </div>
+            )}
             
             {/* Import */}
             <div style={{marginBottom: '8px'}}>
@@ -91,7 +151,8 @@ const BatchProcessing = () => {
                                 });
                                 setBatchNodes(newNodes);
                                 setShowBatchPanel(true);
-                                setBatchNotification({ message: `Successfully imported ${newNodes.length} nodes`, type: 'success' });
+                                // Success popup removed as requested by user
+
                                 // Reset file input to allow re-upload of same file
                                 if (fileInputRef.current) {
                                     fileInputRef.current.value = '';

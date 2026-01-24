@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useMapEvents, Rectangle, Marker, Popup } from 'react-leaflet';
+import { useMapEvents, useMap, Rectangle, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { optimizeLocation } from '../../utils/rfService';
 import { useRF } from '../../context/RFContext';
@@ -20,7 +20,7 @@ const createRankedIcon = (rank) => L.divIcon({
     iconAnchor: [12, 12]
 });
 
-const OptimizationLayer = ({ active, setActive }) => {
+const OptimizationLayer = ({ active, setActive, onStateUpdate }) => {
     const [startPoint, setStartPoint] = useState(null);
     const [endPoint, setEndPoint] = useState(null);
     const [ghostNodes, setGhostNodes] = useState([]);
@@ -28,10 +28,32 @@ const OptimizationLayer = ({ active, setActive }) => {
     const [locked, setLocked] = useState(false);
     const [notification, setNotification] = useState(null); // { message, type }
     const [showResults, setShowResults] = useState(false);
-    const map = useMapEvents({}); 
+    const map = useMap(); 
+    const { freq, antennaHeight, isMobile } = useRF();
     const rectRef = useRef(null); 
-    
-    const { freq, antennaHeight } = useRF();
+    const lastSyncRef = useRef({ startPoint: null, loading: false, ghostCount: 0 }); 
+
+    // Manual sync helper to avoid infinite loops and redundant parent updates
+    const syncState = (forceState = null) => {
+        if (!onStateUpdate) return;
+        
+        const stateToSync = forceState || { startPoint, loading, ghostNodes };
+        const prev = lastSyncRef.current;
+        
+        // Only sync if essentials changed
+        const startChanged = stateToSync.startPoint !== prev.startPoint;
+        const loadingChanged = stateToSync.loading !== prev.loading;
+        const ghostCountChanged = (stateToSync.ghostNodes?.length || 0) !== prev.ghostCount;
+
+        if (startChanged || loadingChanged || ghostCountChanged) {
+            onStateUpdate(stateToSync);
+            lastSyncRef.current = {
+                startPoint: stateToSync.startPoint,
+                loading: stateToSync.loading,
+                ghostCount: stateToSync.ghostNodes?.length || 0
+            };
+        }
+    };
 
     useMapEvents({
         click(e) {
@@ -42,6 +64,7 @@ const OptimizationLayer = ({ active, setActive }) => {
             if (!startPoint) {
                 setStartPoint(e.latlng);
                 setEndPoint(e.latlng); // Init box
+                onStateUpdate?.({ startPoint: e.latlng, loading: false, ghostNodes: [] }); // Immediate sync
             } else {
                 // Second click completes box
                 setEndPoint(e.latlng);
@@ -52,7 +75,7 @@ const OptimizationLayer = ({ active, setActive }) => {
         mousemove(e) {
             if (active && startPoint && !locked && !ghostNodes.length) { // Only drag if searching and not locked
                  if(loading) return; 
-                 // Update endPoint to show preview box
+                 // Update endPoint to show preview box (Local render only)
                  setEndPoint(e.latlng);
             }
         }
@@ -70,8 +93,7 @@ const OptimizationLayer = ({ active, setActive }) => {
             if (result.status === 'success') {
                 setGhostNodes(result.locations);
                 setShowResults(true); // Auto-show results
-                // Transient success message
-                setNotification({ message: `Scan complete! Found ${result.locations.length} ideal spots.`, type: 'success', transient: true });
+                // Success popup removed as requested by user
             } else {
                 setNotification({ message: result.message || "Scan failed. Server returned an error.", type: 'error' });
                  setLocked(false); // Enable retry
@@ -82,6 +104,8 @@ const OptimizationLayer = ({ active, setActive }) => {
             setLocked(false); // Enable retry
         } finally {
             setLoading(false);
+            // Manual sync after optimization state changes
+            onStateUpdate?.({ startPoint, loading: false, ghostNodes: ghostNodes }); 
         }
     };
     
@@ -94,6 +118,7 @@ const OptimizationLayer = ({ active, setActive }) => {
         setLocked(false);
         setNotification(null);
         setShowResults(false);
+        onStateUpdate?.({ startPoint: null, loading: false, ghostNodes: [] }); // Manual sync
     }
 
     // Reset when deactivated specificially
@@ -122,17 +147,8 @@ const OptimizationLayer = ({ active, setActive }) => {
 
     return (
         <>
-            {/* Instruction Panel */}
-            {active && !ghostNodes.length && (
-                <div style={{
-                    position: 'absolute', top: 85, left: '50%', transform: 'translateX(-50%)',
-                    background: 'rgba(0,0,0,0.8)', color: 'white', padding: '10px 16px', borderRadius: '8px', zIndex: 1000,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.1)',
-                    pointerEvents: 'none', whiteSpace: 'nowrap'
-                }}>
-                    {!startPoint ? "Click to set first corner" : "Click to set opposite corner"}
-                </div>
-            )}
+            {/* Instructions moved to MapContainer for UI consistency */}
+
 
             {/* Bounding Box */}
             {bounds && (

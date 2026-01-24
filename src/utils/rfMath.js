@@ -1,4 +1,5 @@
 import * as turf from "@turf/turf";
+import { RF_CONSTANTS } from "./rfConstants";
 
 /**
  * Calculate Free Space Path Loss (FSPL) in dB
@@ -31,7 +32,7 @@ export const calculateFresnelRadius = (
 
   // r = 17.32 * sqrt((d1 * d2) / (f * D))
   // d1, d2, D in km, f in GHz, r in meters
-  return 17.32 * Math.sqrt((d1 * d2) / (fGHz * distanceKm));
+  return RF_CONSTANTS.FRESNEL.CONST_METERS * Math.sqrt((d1 * d2) / (fGHz * distanceKm));
 };
 
 /**
@@ -76,15 +77,15 @@ export const calculateLinkBudget = ({
   // Rule of thumb: Higher SF = Lower (better) sensitivity. Double BW = 3dB worse.
 
   // Base sensitivity for SF7, 125kHz
-  let baseSensitivity = -123;
+  let baseSensitivity = RF_CONSTANTS.LORA.BASE_SENSITIVITY_SF7_125KHZ;
 
   // Adjust for Bandwidth: 10 * log10(BW_meas / BW_ref)
   // If BW goes 125 -> 250, noise floor rises by 3dB, sensitivity worsens by 3dB
-  const bwFactor = 10 * Math.log10(bw / 125);
+  const bwFactor = 10 * Math.log10(bw / RF_CONSTANTS.LORA.REF_BW_KHZ);
 
   // Adjust for Spreading Factor: Each step adds ~2.5dB of process gain
   // SF7 is base. SF12 is 5 steps higher.
-  const sfFactor = (sf - 7) * -2.5;
+  const sfFactor = (sf - RF_CONSTANTS.LORA.REF_SF) * -RF_CONSTANTS.LORA.SF_GAIN_PER_STEP;
 
   const sensitiveLimit = baseSensitivity + bwFactor + sfFactor;
 
@@ -159,9 +160,9 @@ export const calculateFresnelPolygon = (p1, p2, freqMHz, steps = 30) => {
  * @param {number} kFactor - Standard Refraction Factor (default 1.33)
  * @returns {number} Bulge height in meters
  */
-export const calculateEarthBulge = (distKm, totalDistKm, kFactor = 1.33) => {
+export const calculateEarthBulge = (distKm, totalDistKm, kFactor = RF_CONSTANTS.K_FACTOR_DEFAULT) => {
   // Earth Radius (km)
-  const R = 6371;
+  const R = RF_CONSTANTS.EARTH_RADIUS_KM;
   const Re = R * kFactor; // Effective Radius
 
   // Distance to second point
@@ -189,7 +190,7 @@ export const analyzeLinkProfile = (
   freqMHz,
   txHeightAGL,
   rxHeightAGL,
-  kFactor = 1.33,
+  kFactor = RF_CONSTANTS.K_FACTOR_DEFAULT,
   clutterHeight = 0,
 ) => {
   if (!profile || profile.length === 0)
@@ -252,10 +253,10 @@ export const analyzeLinkProfile = (
   // Excellent (>0.8), Good (>0.6), Marginal (>0), Obstructed (<=0)
 
   let linkQuality = "Obstructed";
-  if (worstFresnelRatio >= 0.8) linkQuality = "Excellent (+++)";
-  else if (worstFresnelRatio >= 0.6)
+  if (worstFresnelRatio >= RF_CONSTANTS.FRESNEL.QUALITY.EXCELLENT) linkQuality = "Excellent (+++)";
+  else if (worstFresnelRatio >= RF_CONSTANTS.FRESNEL.QUALITY.GOOD)
     linkQuality = "Good (++)"; // 60% rule
-  else if (worstFresnelRatio > 0)
+  else if (worstFresnelRatio > RF_CONSTANTS.FRESNEL.QUALITY.MARGINAL)
     linkQuality = "Marginal (+)"; // Visual LOS, but heavy Fresnel
   else linkQuality = "Obstructed (-)"; // No Visual LOS
 
@@ -312,7 +313,7 @@ export const calculateOkumuraHata = (
   rxHeightM,
   environment = "suburban",
 ) => {
-  if (distanceKm <= 0.1) return calculateFSPL(distanceKm, freqMHz); // Fallback for very short links
+  if (distanceKm <= RF_CONSTANTS.HATA.LIMITS.MIN_DIST_KM) return calculateFSPL(distanceKm, freqMHz); // Fallback for very short links
 
   // Hata restrictions (technically):
   // f: 150-1500 MHz (Meshtastic 433/868/915 is perfect)
@@ -321,9 +322,9 @@ export const calculateOkumuraHata = (
   // d: 1-20 km
 
   // Clamp heights to avoid log(0)
-  const hb = Math.max(1, txHeightM);
-  const hm = Math.max(1, rxHeightM);
-  const d = Math.max(0.1, distanceKm);
+  const hb = Math.max(RF_CONSTANTS.HATA.LIMITS.MIN_HEIGHT, txHeightM);
+  const hm = Math.max(RF_CONSTANTS.HATA.LIMITS.MIN_HEIGHT, rxHeightM);
+  const d = Math.max(RF_CONSTANTS.HATA.LIMITS.MIN_DIST_KM, distanceKm);
   const f = freqMHz;
 
   const logF = Math.log10(f);
@@ -335,7 +336,11 @@ export const calculateOkumuraHata = (
   const a_hm = _calculateMobileHeightCorrection(f, hm, environment);
 
   let loss =
-    69.55 + 26.16 * logF - 13.82 * logHb - a_hm + (44.9 - 6.55 * logHb) * logD;
+    RF_CONSTANTS.HATA.URBAN_BASE + 
+    RF_CONSTANTS.HATA.FREQ_SCALE * logF - 
+    RF_CONSTANTS.HATA.HB_SCALE * logHb - 
+    a_hm + 
+    (RF_CONSTANTS.HATA.DISTANCE_BASE - RF_CONSTANTS.HATA.DISTANCE_HB_SCALE * logHb) * logD;
 
   // 2. Apply Environmental Extensions
   if (environment === "suburban") {

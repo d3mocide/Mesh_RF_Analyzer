@@ -1,5 +1,34 @@
 # Release Notes
 
+## v1.7.3 - Codebase Health & UI Standardization
+
+This "Sprint 1" release focuses on establishing a rock-solid foundation for future growth. It includes a major architectural refactor of the core map component, the introduction of Geolocation features, and a comprehensive audit of all guidance and visualization overlays to ensure they are consistent, accurate, and user-friendly.
+
+### 🏗️ Architecture & Refactoring
+
+- **Decomposed MapMonolith**: The 1300-line `MapContainer.jsx` has been successfully refactored into modular sub-components:
+  - `LocateControl`: Dedicated geolocation logic.
+  - `MapToolbar`: Independent scrollable toolbar UI.
+  - `GuidanceOverlays`: Standardized help banner system.
+  - `CoverageClickHandler`: Separated event logic for RF tools.
+- **Result**: Reduced main file size by **~40%**, significantly improving readability and maintainability.
+
+### 📍 Geolocation
+
+- **"Locate Me" Feature**: Added a new control button that uses the browser's Geolocation API to instantly fly the map to the user's current physical location.
+- **Smart Feedback**: Includes loading states and error handling for permission denials.
+
+### 🎨 UI/UX Standardization
+
+- **Viewshed Overlay Fix**: Corrected the WebGL shader to display **Green (LOS)** and **Purple (Obstructed)**, matching the legend exactly.
+- **Guidance Unification**:
+  - All tool banners (Link, Elevation, Viewshed, RF) now use a consistent layout, color scheme, and dismissal logic.
+  - **Mobile Polish**: Increased toolbar padding and softened scroll gradients to ensure button labels are fully visible on small screens.
+  - **Terminology**: Standardized "Purple Area" naming in Viewshed guides.
+- **Dynamic Hardware Cues**: Added tips to the Link Analysis banner highlighting real-time hardware reconfiguration capabilities.
+
+---
+
 ## v1.7.2 - Selection Logic & UI Polish
 
 This release unifies the node selection behavior, resolves critical event propagation bugs, and polishes the import notification UI for a more professional experience.

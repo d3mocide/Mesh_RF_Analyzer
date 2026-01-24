@@ -5,27 +5,55 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 // Vite handles 'new Worker' with URL import
 const worker = new Worker(new URL('../../libmeshrf/js/Worker.ts', import.meta.url), { type: 'module' });
 
+// Global status tracking to handle multiple hook instances and re-mounts
+let globalWorkerReady = false;
+const statusListeners = new Set();
+
+worker.onmessage = (e) => {
+    const { type } = e.data;
+    if (type === 'INIT_COMPLETE') {
+        globalWorkerReady = true;
+        statusListeners.forEach(listener => listener(true));
+        statusListeners.clear();
+        console.log("MeshRF Global Worker Initialized");
+    }
+};
+
+// Initial query in case it's already running
+worker.postMessage({ type: 'QUERY_INIT_STATUS' });
+
 import { stitchElevationGrids, transformObserverCoords, calculateStitchedBounds } from '../utils/tileStitcher';
 
 export function useViewshedTool(active) {
     const [resultLayer, setResultLayer] = useState(null); // { data, width, height, bounds }
     const [isCalculating, setIsCalculating] = useState(false);
     const [error, setError] = useState(null);
-    const workerInitialized = useRef(false);
+    const [ready, setReady] = useState(globalWorkerReady);
+
     
     // Track analysis state
     const analysisIdRef = useRef(null);
 
     useEffect(() => {
-        worker.onmessage = (e) => {
+        if (globalWorkerReady) {
+            setReady(true);
+            return;
+        }
+
+        const handleStatus = (isReady) => setReady(isReady);
+        statusListeners.add(handleStatus);
+
+        // Ping the worker again if it's inactive but the hook just mounted
+        worker.postMessage({ type: 'QUERY_INIT_STATUS' });
+
+        return () => statusListeners.delete(handleStatus);
+    }, []);
+
+    useEffect(() => {
+        // We still need a local message handler for individual tool results
+        const handleMessage = (e) => {
             const { type, id, result, error: workerError } = e.data;
             
-            if (type === 'INIT_COMPLETE') {
-                workerInitialized.current = true;
-                console.log("MeshRF Worker Initialized");
-                return;
-            }
-
             if (workerError) {
                 console.error("Worker Error:", workerError);
                 if (analysisIdRef.current && id === analysisIdRef.current) {
@@ -45,10 +73,6 @@ export function useViewshedTool(active) {
                    for(let k=0; k<result.length; k++) { if(result[k] > 0) visibleCount++; }
                    console.log(`[ViewshedWorker] Result received. Size: ${result.length}. Visible pixels: ${visibleCount}`);
                    
-                   // We need to retrieve the bounds we calculated earlier.
-                   // Since this is a single async flow, we can't easily access the local vars of runAnalysis from here
-                   // unless we store them in a ref or if we pass them back from worker (by adding to payload).
-                   // A simple Ref for "currentBounds" works since we only run one analysis at a time usually.
                    if (currentBoundsRef.current) {
                        setResultLayer({
                            data: result,
@@ -61,7 +85,11 @@ export function useViewshedTool(active) {
                 }
             }
         };
+
+        worker.addEventListener('message', handleMessage);
+        return () => worker.removeEventListener('message', handleMessage);
     }, []);
+
 
     // Clear state when tool is deactivated
     useEffect(() => {
@@ -163,19 +191,20 @@ export function useViewshedTool(active) {
 
     const runAnalysis = useCallback(async (lat, lon, height = 2.0, maxDist = 3000) => {
         // Wait for worker to initialize if needed
-        if (!workerInitialized.current) {
+        if (!globalWorkerReady) {
             console.log("Worker not ready, waiting...");
             let attempts = 0;
-            while (!workerInitialized.current && attempts < 20) {
+            while (!globalWorkerReady && attempts < 20) {
                 await new Promise(r => setTimeout(r, 200));
                 attempts++;
             }
-            if (!workerInitialized.current) {
+            if (!globalWorkerReady) {
                 console.error("Worker failed to initialize in time");
                 setError("Engine failed to start. Please reload.");
                 return;
             }
         }
+
         
         setIsCalculating(true);
         setError(null);

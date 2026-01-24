@@ -28,12 +28,11 @@ void main() {
     float visible = texColor.r;
     
     if (visible > 0.0) {
-        // Visible: Green/Yellow tint
-        // Hardcoded opacity to debug uniform issue
-        fragColor = vec4(0.2, 1.0, 0.2, 0.6);
+        // Visible: Brand Green (#00ff41)
+        fragColor = vec4(0.0, 1.0, 0.25, 0.5);
     } else {
-        // Invisible or No Data
-        discard;
+        // Obstructed: Brand Purple (#a855f7) - Low opacity for "Dark Area" feel
+        fragColor = vec4(0.66, 0.33, 0.97, 0.3);
     }
 }
 `;

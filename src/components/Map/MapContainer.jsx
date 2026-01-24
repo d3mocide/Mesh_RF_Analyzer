@@ -17,6 +17,13 @@ import { useViewshedTool } from '../../hooks/useViewshedTool';
 import { useRFCoverageTool } from '../../hooks/useRFCoverageTool';
 import BatchNodesPanel from './BatchNodesPanel';
 
+// Refactored Sub-Components
+import LocateControl from './Controls/LocateControl';
+import CoverageClickHandler from './Controls/CoverageClickHandler';
+import BatchNodesPanelWrapper from './Controls/BatchNodesPanelWrapper';
+import MapToolbar from './UI/MapToolbar';
+import GuidanceOverlays from './UI/GuidanceOverlays';
+
 // Fix for default marker icon issues in React Leaflet
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
@@ -32,65 +39,12 @@ L.Marker.prototype.options.icon = DefaultIcon;
 
 import { useMapEvents, useMap } from 'react-leaflet';
 
-const CoverageClickHandler = ({ mode, runViewshed, runRFCoverage, setViewshedObserver, setRfObserver, rfContext }) => {
-    useMapEvents({
-        click(e) {
-            if (mode === 'viewshed' || mode === 'rf_coverage') {
-                const { lat, lng } = e.latlng;
-                
-                if (mode === 'viewshed') {
-                    setViewshedObserver({ lat, lng, height: 2.0 });
-                    // Run simple viewshed (25km radius)
-                    runViewshed(lat, lng, 2.0, 25000);
-                } else if (mode === 'rf_coverage') {
-                    // Use helper to get height in meters (handling ft conversion)
-                    const h = rfContext.getAntennaHeightMeters ? rfContext.getAntennaHeightMeters() : (rfContext.antennaHeight || 5.0);
-                    
-                    console.log(`[RF Click] Setting Observer: Height=${h.toFixed(2)}m (Raw input: ${rfContext.antennaHeight})`);
-                    setRfObserver({ lat, lng, height: h }); // Store processed height in meters
-
-                    const rfParams = {
-                        freq: rfContext.freq,
-                        txPower: rfContext.txPower,
-                        txGain: rfContext.antennaGain,
-                        rxGain: 2.15, // Default RX (dipole)
-                        rxSensitivity: rfContext.calculateSensitivity ? rfContext.calculateSensitivity() : -126,
-                        bw: rfContext.bw,
-                        sf: rfContext.sf,
-                        cr: rfContext.cr,
-                        rxHeight: rfContext.rxHeight
-                    };
-                    
-                    console.log("[RF Click] Running Analysis with Params:", rfParams);
-                    runRFCoverage(lat, lng, h, 25000, rfParams);
-                }
-            }
-        }
-    });
-    return null;
-};
-
-// Wrapper component to access map instance for BatchNodesPanel
-const BatchNodesPanelWrapper = ({ nodes, selectedNodes, onClear, onNodeSelect, forceMinimized = false }) => {
-  const map = useMap();
-  
-  const handleCenter = (node) => {
-    map.flyTo([node.lat, node.lng], 15, { duration: 1.5 });
-  };
-
-  const handleNodeSelect = (node) => {
-    handleCenter(node);
-    if (onNodeSelect) onNodeSelect(node);
-  };
-  
-  return <BatchNodesPanel nodes={nodes} selectedNodes={selectedNodes} onCenter={handleCenter} onClear={onClear} onNodeSelect={handleNodeSelect} forceMinimized={forceMinimized} />;
-};
-
+// MapComponent
 const MapComponent = () => {
-  // Default Map Center (Portland, OR)
+  // Default Map Center (Portland, OR) stabile ref
   const defaultLat = 45.5152;
   const defaultLng = -122.6784;
-  const position = [defaultLat, defaultLng];
+  const position = React.useMemo(() => [defaultLat, defaultLng], []);
 
   // Lifted State
   const [nodes, setNodes] = useState([]); 
@@ -100,6 +54,11 @@ const MapComponent = () => {
   const [viewshedObserver, setViewshedObserver] = useState(null); // Single Point for Viewshed Tool
   const [rfObserver, setRfObserver] = useState(null); // Single Point for RF Coverage Tool
   const [isLinkLocked, setIsLinkLocked] = useState(false); // Default unlocked
+  const [viewshedHelp, setViewshedHelp] = useState(false);
+  const [rfHelp, setRFHelp] = useState(false);
+  const [linkHelp, setLinkHelp] = useState(false);
+  const [elevationHelp, setElevationHelp] = useState(false);
+  const [optimizeState, setOptimizeState] = useState({ startPoint: null, endPoint: null, ghostNodes: [], loading: false });
   const [selectedBatchNodes, setSelectedBatchNodes] = useState([null, null]); // Track selected batch nodes: [TX_node, RX_node]
   
   // Propagation Model State
@@ -233,6 +192,10 @@ const MapComponent = () => {
       setSelectedBatchNodes([null, null]); // Reset to initial state
       setEditMode('GLOBAL'); // Clear node editing state
   };
+
+  const handleOptimizationStateUpdate = React.useCallback((state) => {
+      setOptimizeState(state);
+  }, []);
 
   const handleNodeSelect = (node, isBatch = false) => {
     // Only allow selection in link mode
@@ -388,6 +351,7 @@ const MapComponent = () => {
         zoomControl={false}
       >
         <ZoomControl position="bottomright" />
+        <LocateControl />
         <CoverageClickHandler 
             mode={toolMode}
             runViewshed={runAnalysis}
@@ -509,7 +473,7 @@ const MapComponent = () => {
         {viewshedBounds && (
             <Rectangle 
                 bounds={viewshedBounds} 
-                pathOptions={{ color: 'red', dashArray: '10, 10', fill: false, weight: 2 }} 
+                pathOptions={{ color: '#a855f7', dashArray: '10, 10', fill: false, weight: 2 }} 
             />
         )}
         
@@ -521,249 +485,255 @@ const MapComponent = () => {
             />
         )}
         
-        <OptimizationLayer active={toolMode === 'optimize'} setActive={(active) => setToolMode(active ? 'optimize' : 'none')} />
-        
-        {/* Batch Nodes Rendering */}
-        {batchNodes.length > 0 && batchNodes.map((node) => {
-            // Check if this node is selected by looking at indices 0 and 1
-            const selectionTX = selectedBatchNodes[0];
-            const selectionRX = selectedBatchNodes[1];
-            const isTX = selectionTX?.id === node.id;
-            const isRX = selectionRX?.id === node.id;
-            const isSelected = isTX || isRX;
-            const role = isTX ? 'TX' : (isRX ? 'RX' : null);
-            
-            // Determine styling based on selection
-            let className = 'batch-node-icon';
-            let bgColor = '#00f2ff';
-            let boxShadow = '0 0 8px rgba(0, 242, 255, 0.6)';
-            
-            if (isSelected) {
-                if (role === 'TX') {
-                    // Don't add animation class - it causes ghost elements
-                    bgColor = '#00ff41';
-                    boxShadow = '0 0 12px rgba(0, 255, 65, 0.8)';
-                } else if (role === 'RX') {
-                    // Don't add animation class - it causes ghost elements
-                    bgColor = '#ff0000';
-                    boxShadow = '0 0 12px rgba(255, 0, 0, 0.8)';
-                }
-            }
-            
-            return (
-                <Marker 
-                    key={`batch-${node.id}`} 
-                    position={[node.lat, node.lng]} 
-                    icon={L.divIcon({
-                        className: className,
-                        html: `<div style="background-color: ${bgColor}; width: 12px; height: 12px; border-radius: 50%; opacity: 0.9; border: 2px solid white; box-shadow: ${boxShadow};"></div>`,
-                        iconSize: [12, 12],
-                        iconAnchor: [6, 6]
-                    })}
-                    eventHandlers={{
-                        click: (e) => {
-                            L.DomEvent.stopPropagation(e);
-                            handleNodeSelect(node, true);
-                        }
-                    }}
-                >
-                    <Popup>{node.name}</Popup>
-                </Marker>
-            );
-        })}
-        
-        {/* Batch Nodes Panel - Must be inside MapContainer to use useMap hook */}
-        {showBatchPanel && batchNodes.length > 0 && (
-            <BatchNodesPanelWrapper 
-                nodes={batchNodes}
-                selectedNodes={selectedBatchNodes}
-                onClear={() => {
-                    setBatchNodes([]);
-                    setShowBatchPanel(false);
-                    resetToolState(); // Reset active link/markers when clearing batch panel
-                }}
-                onNodeSelect={(node) => handleNodeSelect(node, true)}
-                forceMinimized={isMobile && nodes.length === 2}
-            />
-        )}
-      </MapContainer>
+      <OptimizationLayer 
+        active={toolMode === 'optimize'} 
+        setActive={React.useCallback((active) => setToolMode(active ? 'optimize' : 'none'), [setToolMode])} 
+        onStateUpdate={handleOptimizationStateUpdate}
+      />
+      
+      {/* Batch Nodes Rendering */}
+      {batchNodes.length > 0 && batchNodes.map((node) => {
+          // Check if this node is selected by looking at indices 0 and 1
+          const selectionTX = selectedBatchNodes[0];
+          const selectionRX = selectedBatchNodes[1];
+          const isTX = selectionTX?.id === node.id;
+          const isRX = selectionRX?.id === node.id;
+          const isSelected = isTX || isRX;
+          const role = isTX ? 'TX' : (isRX ? 'RX' : null);
+          
+          // Determine styling based on selection
+          let className = 'batch-node-icon';
+          let bgColor = '#00f2ff';
+          let boxShadow = '0 0 8px rgba(0, 242, 255, 0.6)';
+          
+          if (isSelected) {
+              if (role === 'TX') {
+                  // Don't add animation class - it causes ghost elements
+                  bgColor = '#00ff41';
+                  boxShadow = '0 0 12px rgba(0, 255, 65, 0.8)';
+              } else if (role === 'RX') {
+                  // Don't add animation class - it causes ghost elements
+                  bgColor = '#ff0000';
+                  boxShadow = '0 0 12px rgba(255, 0, 0, 0.8)';
+              }
+          }
+          
+          return (
+              <Marker 
+                  key={`batch-${node.id}`} 
+                  position={[node.lat, node.lng]} 
+                  icon={L.divIcon({
+                      className: className,
+                      html: `<div style="background-color: ${bgColor}; width: 12px; height: 12px; border-radius: 50%; opacity: 0.9; border: 2px solid white; box-shadow: ${boxShadow};"></div>`,
+                      iconSize: [12, 12],
+                      iconAnchor: [6, 6]
+                  })}
+                  eventHandlers={{
+                      click: (e) => {
+                          L.DomEvent.stopPropagation(e);
+                          handleNodeSelect(node, true);
+                      }
+                  }}
+              >
+                  <Popup>{node.name}</Popup>
+              </Marker>
+          );
+      })}
+      
+      {/* Batch Nodes Panel - Must be inside MapContainer to use useMap hook */}
+      {showBatchPanel && batchNodes.length > 0 && (
+          <BatchNodesPanelWrapper 
+              nodes={batchNodes}
+              selectedNodes={selectedBatchNodes}
+              onClear={() => {
+                  setBatchNodes([]);
+                  setShowBatchPanel(false);
+                  resetToolState(); // Reset active link/markers when clearing batch panel
+              }}
+              onNodeSelect={(node) => handleNodeSelect(node, true)}
+              forceMinimized={isMobile && nodes.length === 2}
+          />
+      )}
+    </MapContainer>
 
-      {/* Tool Toggles */}
-      <div className="tool-bar-wrapper" style={{
-          position: 'absolute', 
-          top: 20, 
-          left: 20, 
-          zIndex: 1000,
-          maxWidth: 'calc(100vw - 40px)', // Constrain width on mobile
-          height: '40px', // Fixed height container
-          overflow: 'hidden', // Hide overflow of wrapper
-          display: 'flex',
-          alignItems: 'center'
-      }}>
-          <div className="tool-bar-scroll" style={{ 
-              display: 'flex', 
-              gap: '12px',
-              overflowX: 'auto', // Enable scroll
+    {/* Tool Toggles */}
+    <div className="tool-bar-wrapper" style={{
+        position: 'absolute', 
+        top: 20, 
+        left: 20, 
+        zIndex: 1000,
+        maxWidth: 'calc(100vw - 40px)', // Constrain width on mobile
+        height: '40px', // Fixed height container
+        overflow: 'hidden', // Hide overflow of wrapper
+        display: 'flex',
+        alignItems: 'center'
+    }}>
+        <div className="tool-bar-scroll" style={{ 
+            display: 'flex', 
+            gap: '12px',
+            overflowX: 'auto', // Enable scroll
+            whiteSpace: 'nowrap',
+            scrollbarWidth: 'none', // Hide scrollbar FF
+            msOverflowStyle: 'none', // Hide scrollbar IE
+            paddingRight: '60px' // Space for fade
+        }}>
+        {/* Hide Scrollbar Chrome/Safari */}
+        <style>{`
+          .tool-bar-scroll::-webkit-scrollbar { display: none; }
+          @media (min-width: 768px) {
+              .scroll-hint { display: none !important; }
+              .tool-bar-wrapper { max-width: none !important; }
+          }
+        `}</style>
+        
+        <button 
+          onClick={() => {
+              if (toolMode === 'link') {
+                  resetToolState();
+                  setToolMode('none');
+              } else {
+                  resetToolState();
+                  setToolMode('link');
+              }
+          }}
+          style={{
+              background: toolMode === 'link' ? '#00ff41' : '#222',
+              color: toolMode === 'link' ? '#000' : '#fff',
+              border: '1px solid #444',
+              padding: '0 12px',
+              height: '36px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '14px',
+              boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
               whiteSpace: 'nowrap',
-              scrollbarWidth: 'none', // Hide scrollbar FF
-              msOverflowStyle: 'none', // Hide scrollbar IE
-              paddingRight: '30px' // Space for fade
-          }}>
-          {/* Hide Scrollbar Chrome/Safari */}
-          <style>{`
-            .tool-bar-scroll::-webkit-scrollbar { display: none; }
-            @media (min-width: 768px) {
-                .scroll-hint { display: none !important; }
-                .tool-bar-wrapper { max-width: none !important; }
-            }
-          `}</style>
-          
-          <button 
-            onClick={() => {
-                if (toolMode === 'link') {
-                    resetToolState();
-                    setToolMode('none');
-                } else {
-                    resetToolState();
-                    setToolMode('link');
-                }
-            }}
-            style={{
-                background: toolMode === 'link' ? '#00ff41' : '#222',
-                color: toolMode === 'link' ? '#000' : '#fff',
-                border: '1px solid #444',
-                padding: '0 12px',
-                height: '36px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                fontSize: '14px',
-                boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
-                whiteSpace: 'nowrap',
-                flexShrink: 0 // Prevent shrinking
-            }}
-          >
-            Link Analysis
-          </button>
+              flexShrink: 0 // Prevent shrinking
+          }}
+        >
+          Link Analysis
+        </button>
 
-          <button 
-            onClick={() => {
-                if(toolMode === 'optimize') {
-                    resetToolState();
-                    setToolMode('none');
-                } else {
-                    resetToolState();
-                    setToolMode('optimize');
-                }
-            }}
-            style={{
-                background: toolMode === 'optimize' ? '#00f2ff' : '#222',
-                color: toolMode === 'optimize' ? '#000' : '#fff',
-                border: '1px solid #444',
-                padding: '0 12px',
-                height: '36px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                fontSize: '14px',
-                boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
-                whiteSpace: 'nowrap',
-                flexShrink: 0
-            }}
-          >
-            {toolMode === 'optimize' ? 'Cancel Scan' : 'Elevation Scan'}
-          </button>
+        <button 
+          onClick={() => {
+              if(toolMode === 'optimize') {
+                  resetToolState();
+                  setToolMode('none');
+              } else {
+                  resetToolState();
+                  setToolMode('optimize');
+              }
+          }}
+          style={{
+              background: toolMode === 'optimize' ? '#00f2ff' : '#222',
+              color: toolMode === 'optimize' ? '#000' : '#fff',
+              border: '1px solid #444',
+              padding: '0 12px',
+              height: '36px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '14px',
+              boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
+          }}
+        >
+          {toolMode === 'optimize' ? 'Cancel Scan' : 'Elevation Scan'}
+        </button>
 
 
-          
-          <button 
-            onClick={() => {
-                if(toolMode === 'viewshed') {
-                    resetToolState();
-                    setToolMode('none');
-                } else {
-                    resetToolState();
-                    setToolMode('viewshed');
-                }
-            }}
-            style={{
-                // display: 'none', // Hidden - requires backend server at localhost:5001
-                background: toolMode === 'viewshed' ? '#22ff00' : '#222',
-                color: toolMode === 'viewshed' ? '#000' : '#fff',
-                border: '1px solid #444',
-                padding: '0 12px',
-                height: '36px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                fontSize: '14px',
-                boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
-                whiteSpace: 'nowrap',
-                flexShrink: 0
-            }}
-          >
-            Viewshed
-          </button>
-          
-          <button 
-            onClick={() => {
-                if(toolMode === 'rf_coverage') {
-                    resetToolState();
-                    setToolMode('none');
-                } else {
-                    resetToolState();
-                    setToolMode('rf_coverage');
-                }
-            }}
-            style={{
-                background: toolMode === 'rf_coverage' ? '#ff6b00' : '#222',
-                color: toolMode === 'rf_coverage' ? '#000' : '#fff',
-                border: '1px solid #444',
-                padding: '0 12px',
-                height: '36px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                fontSize: '14px',
-                boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
-                whiteSpace: 'nowrap',
-                flexShrink: 0
-            }}
-          >
-            RF Simulator
-          </button>
-      </div> {/* Close scroll container */}
-      
-      {/* Scroll Hint Overlay */}
-      <div className="scroll-hint" style={{
-          position: 'absolute',
-          right: 0,
-          top: 0,
-          bottom: 0,
-          width: '50px',
-          background: 'linear-gradient(to right, transparent, transparent 10%, rgba(0,0,0,0.8) 100%)',
-          pointerEvents: 'none',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          paddingRight: '8px'
-      }}>
-          <span style={{color: '#fff', fontSize: '18px', fontWeight: 'bold', textShadow: '0 0 5px #000'}}>›</span>
-      </div>
-      
-      </div> {/* Close wrapper */}
+        
+        <button 
+          onClick={() => {
+              if(toolMode === 'viewshed') {
+                  resetToolState();
+                  setToolMode('none');
+              } else {
+                  resetToolState();
+                  setToolMode('viewshed');
+              }
+          }}
+          style={{
+              // display: 'none', // Hidden - requires backend server at localhost:5001
+              background: toolMode === 'viewshed' ? '#a855f7' : '#222',
+              color: toolMode === 'viewshed' ? '#000' : '#fff',
+              border: '1px solid #444',
+              padding: '0 12px',
+              height: '36px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '14px',
+              boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
+          }}
+        >
+          Viewshed
+        </button>
+        
+        <button 
+          onClick={() => {
+              if(toolMode === 'rf_coverage') {
+                  resetToolState();
+                  setToolMode('none');
+              } else {
+                  resetToolState();
+                  setToolMode('rf_coverage');
+              }
+          }}
+          style={{
+              background: toolMode === 'rf_coverage' ? '#ff6b00' : '#222',
+              color: toolMode === 'rf_coverage' ? '#000' : '#fff',
+              border: '1px solid #444',
+              padding: '0 12px',
+              height: '36px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '14px',
+              boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
+          }}
+        >
+          RF Simulator
+        </button>
+    </div> {/* Close scroll container */}
+    
+    {/* Scroll Hint Overlay */}
+    <div className="scroll-hint" style={{
+        position: 'absolute',
+        right: 0,
+        top: 0,
+        bottom: 0,
+        width: '60px',
+        background: 'linear-gradient(to right, transparent, transparent 20%, rgba(0,0,0,0.6) 100%)',
+        pointerEvents: 'none',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        paddingRight: '12px'
+    }}>
+        <span style={{color: '#fff', fontSize: '20px', fontWeight: 'bold', textShadow: '0 0 5px #000'}}>›</span>
+    </div>
+    
+    </div> {/* Close wrapper */}
+    
+
       
       {/* Clear Link Button - Shows when link nodes exist */}
       {nodes.length > 0 && (

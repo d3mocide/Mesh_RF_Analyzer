@@ -1,4 +1,4 @@
-# meshRF 📡 v1.7.2
+# meshRF 📡 v1.7.3
 
 A professional-grade RF propagation and link analysis tool designed for LoRa Mesh networks (Meshtastic, Reticulum, Sidewinder). Built with **React**, **Leaflet**, and a high-fidelity **Geodetic Physics Engine**.
 
@@ -19,12 +19,39 @@ meshRF is designed for **mission-critical availability**. It operates with **zer
 
 - **Parallel Location Optimization**: Rapidly scan bounding boxes for optimal node placement using high-concurrency grid searches.
 - **RF Coverage Simulator** (In Test): Optimized Wasm-powered ITM propagation modeling for wide-area coverage visualization.
-- **Viewshed Analysis**: Desktop-grade viewshed calculations served via high-resolution Terrain-RGB tiles.
+- **Viewshed Analysis**: Desktop-grade viewshed calculations with "Shadow Mode" visualization (Green/Purple) for precise LOS checking.
+- **Geolocation**: "Locate Me" feature for instant map orientation during field surveys.
 
 ### 3. ⚡ Batch Operations & reporting
 
 - **Bulk Link Matrix**: Import CSVs (`Name, Lat, Lon`) to instantly compute link budgets for entire networks.
 - **Automated Reporting**: Export detailed CSV reports containing RSSI, Signal Margin, and Clearance values.
+- **Context-Aware Guidance**: Every tool features built-in, interactive help banners that update based on your current mode, guiding you through workflows step-by-step.
+
+### 4. 📚 Documentation
+
+Detailed guides for specific tools:
+
+- [📖 viewshed.md](./Documentation/viewshed.md) - Optical LOS analysis.
+- [📖 rf-simulator.md](./Documentation/rf-simulator.md) - Coverage heatmap simulation.
+- [📖 interactions.md](./Documentation/interactions.md) - Tool workflows and "Locate Me".
+- [📖 batch-processing.md](./Documentation/batch-processing.md) - Bulk link analysis.
+- [📖 hardware-settings.md](./Documentation/hardware-settings.md) - Node configuration.
+
+---
+
+## 📡 Propagation Models
+
+meshRF supports multiple propagation models to suit different environments:
+
+| Model                           | Best For          | Characteristics                                           |
+| :------------------------------ | :---------------- | :-------------------------------------------------------- |
+| **Free Space (FSPL)**           | Ideal LOS, Orbit  | Baseline physics, no terrain or environment effects.      |
+| **Okumura-Hata**                | Flat/Suburban     | Empirical model for urban/suburban. Assumes flat terrain. |
+| **ITM (Longley-Rice)** (IN DEV) | Irregular Terrain | **Recommended**. High-fidelity terrain-aware modeling.    |
+
+> [!TIP]
+> Use **ITM** for most terrestrial link analyses to account for hills and varying terrain heights. Use **Okumura-Hata** for quick city-wide surveys where buildings dominate over terrain.
 
 ---
 

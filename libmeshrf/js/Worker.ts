@@ -1,3 +1,4 @@
+/// <reference lib="webworker" />
 // Worker.ts
 // Web Worker for MeshRF Engine
 
@@ -28,16 +29,26 @@ let module: MeshRFModule | null = null;
 // Initialize Wasm Module
 createMeshRF().then((m: any) => {
     module = m;
-    postMessage({ type: 'INIT_COMPLETE' });
+    self.postMessage({ type: 'INIT_COMPLETE' });
 });
 
 self.onmessage = (e: MessageEvent) => {
-    if (!module) {
-        console.error("MeshRF Module not initialized");
+    const { id, type, payload } = e.data;
+    
+    // Allow clients to query status if they missed the INIT_COMPLETE message
+    // This MUST happen before the module check to avoid noisy console errors during load
+    if (type === 'QUERY_INIT_STATUS') {
+        if (module) {
+            self.postMessage({ type: 'INIT_COMPLETE' });
+        }
         return;
     }
 
-    const { id, type, payload } = e.data;
+    if (!module) {
+        console.error("MeshRF Module not initialized - cannot process calculation request");
+        return;
+    }
+
     console.log(`[Worker] Received message: ${type} (ID: ${id})`);
 
     try {
@@ -49,7 +60,7 @@ self.onmessage = (e: MessageEvent) => {
             handleOptimization(id, payload);
         }
     } catch (err: any) {
-        postMessage({ id, error: err.toString() });
+        self.postMessage({ id, error: err.toString() });
     }
 };
 
@@ -87,7 +98,7 @@ function handleITM(id: string, payload: any) {
         resultVec.delete();
 
         // 5. Return
-        postMessage({ id, type: 'CALCULATE_ITM_RESULT', result: resultArr }, [resultArr.buffer]);
+        (self as any).postMessage({ id, type: 'CALCULATE_ITM_RESULT', result: resultArr }, [resultArr.buffer]);
 
     } finally {
         module._free(ptr);
@@ -121,7 +132,7 @@ function handleViewshed(id: string, payload: any) {
         resultVec.delete();
         
         console.log(`[Worker] Posting result back`);
-        postMessage({ id, type: 'CALCULATE_VIEWSHED_RESULT', result: resultArr }, [resultArr.buffer]);
+        (self as any).postMessage({ id, type: 'CALCULATE_VIEWSHED_RESULT', result: resultArr }, [resultArr.buffer]);
 
     } finally {
         module._free(ptr);
@@ -151,7 +162,7 @@ function handleOptimization(id: string, payload: any) {
         resultVec.delete();
         
         // Return selected indices
-        postMessage({ id, type: 'CALCULATE_OPTIMIZATION_RESULT', result: resultArr });
+        self.postMessage({ id, type: 'CALCULATE_OPTIMIZATION_RESULT', result: resultArr });
         
     } finally {
         module._free(ptr);

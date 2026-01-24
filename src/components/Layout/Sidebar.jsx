@@ -408,6 +408,44 @@ const Sidebar = () => {
                 (TX {txPower} + Gain {antennaGain} - Loss {cableLoss})
             </div>
 
+            {/* DOCUMENTATION LINK - Integrated into Hardware Summary */}
+            <a 
+                href="https://github.com/d3mocide/MeshRF/tree/main/Documentation" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '10px',
+                    background: 'rgba(0, 242, 255, 0.05)',
+                    border: '1px solid rgba(0, 242, 255, 0.2)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '8px',
+                    color: 'var(--color-primary)',
+                    textDecoration: 'none',
+                    fontSize: '0.85rem',
+                    fontWeight: 'bold',
+                    transition: 'all 0.2s ease',
+                    marginTop: '12px'
+                }}
+                onMouseOver={(e) => {
+                    e.currentTarget.style.background = 'rgba(0, 242, 255, 0.1)';
+                    e.currentTarget.style.borderColor = 'var(--color-primary)';
+                }}
+                onMouseOut={(e) => {
+                    e.currentTarget.style.background = 'rgba(0, 242, 255, 0.05)';
+                    e.currentTarget.style.borderColor = 'rgba(0, 242, 255, 0.2)';
+                }}
+            >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                </svg>
+                View Documentation
+            </a>
+
         </div>
 
 
