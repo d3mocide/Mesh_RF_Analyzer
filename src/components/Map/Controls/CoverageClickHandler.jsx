@@ -14,7 +14,7 @@ const CoverageClickHandler = ({ mode, runViewshed, runRFCoverage, setViewshedObs
                     // Use helper to get height in meters (handling ft conversion)
                     const h = rfContext.getAntennaHeightMeters ? rfContext.getAntennaHeightMeters() : (rfContext.antennaHeight || 5.0);
                     
-                    console.log(`[RF Click] Setting Observer: Height=${h.toFixed(2)}m (Raw input: ${rfContext.antennaHeight})`);
+
                     setRfObserver({ lat, lng, height: h }); // Store processed height in meters
 
                     const rfParams = {
@@ -29,7 +29,7 @@ const CoverageClickHandler = ({ mode, runViewshed, runRFCoverage, setViewshedObs
                         rxHeight: rfContext.rxHeight
                     };
                     
-                    console.log("[RF Click] Running Analysis with Params:", rfParams);
+
                     runRFCoverage(lat, lng, h, 25000, rfParams);
                 }
             }

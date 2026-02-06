@@ -5,10 +5,10 @@ const UpdatePrompt = () => {
   // Defensive destructuring to prevent crash if hook returns unexpected structure
   const sw = useRegisterSW({
     onRegistered(r) {
-      console.log('SW Registered:', r);
+
     },
     onRegisterError(error) {
-      console.error('SW registration error', error);
+
     },
   });
 

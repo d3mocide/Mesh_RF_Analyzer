@@ -185,7 +185,7 @@ const MapComponent = () => {
   useEffect(() => {
     if (recalcTimestamp && toolMode === "rf_coverage" && rfObserver) {
       const { lat, lng } = rfObserver;
-      console.log("Triggering RF Recalculation due to param update");
+
 
       // Recalculate height from current context (in case user changed height/units)
       const currentHeight = getAntennaHeightMeters
@@ -208,10 +208,7 @@ const MapComponent = () => {
         cr,
         rxHeight,
       };
-      console.log(
-        `[RF Recalc] Height: ${currentHeight.toFixed(2)}m, Params:`,
-        rfParams,
-      );
+
       runRFAnalysis(lat, lng, currentHeight, 25000, rfParams);
     }
   }, [recalcTimestamp]);
@@ -379,10 +376,7 @@ const MapComponent = () => {
     }
     const imageData = new ImageData(rgbaData, width, height);
 
-    console.log(
-      `[MapContainer] Adding Stitched Viewshed Layer. Bounds:`,
-      bounds,
-    );
+
     deckLayers.push(
       new WasmViewshedLayer({
         id: "wasm-viewshed-layer-stitched",
@@ -408,13 +402,9 @@ const MapComponent = () => {
   if (toolMode === "rf_coverage" && rfResultLayer && rfResultLayer.data) {
     const { width, height, data, rfParams, bounds } = rfResultLayer;
 
-    console.log(
-      `[MapContainer] Processing ${data.length} pixels for RF visualization`,
-    );
 
-    console.log(
-      `[MapContainer] Processing ${data.length} pixels for RF visualization`,
-    );
+
+
 
     const { west, south, east, north } = bounds;
 
@@ -564,13 +554,10 @@ const MapComponent = () => {
                 })
                   .then((res) => res.json())
                   .then((data) => {
-                    console.log("Viewshed Debug - Fetched Elevation:", data);
+
                     const elevation = data.elevation || 0;
                     const newObserver = { lat, lng, height: elevation + 2.0 };
-                    console.log(
-                      "Viewshed Debug - Setting Observer:",
-                      newObserver,
-                    );
+
                     setViewshedObserver(newObserver);
 
                     // Trigger Recalculation

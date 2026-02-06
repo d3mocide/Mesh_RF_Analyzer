@@ -15,7 +15,7 @@ worker.onmessage = (e) => {
         globalWorkerReady = true;
         statusListeners.forEach(listener => listener(true));
         statusListeners.clear();
-        console.log("MeshRF Global Worker Initialized");
+
     }
 };
 
@@ -65,13 +65,13 @@ export function useViewshedTool(active) {
 
             if (type === 'CALCULATE_VIEWSHED_RESULT') {
                 if (analysisIdRef.current && id === analysisIdRef.current) {
-                   console.log("Stitched Viewshed Calculation Complete");
+
                    
                    // result is Uint8Array of the stitched grid
                    // DEBUG: Check visibility
                    let visibleCount = 0;
                    for(let k=0; k<result.length; k++) { if(result[k] > 0) visibleCount++; }
-                   console.log(`[ViewshedWorker] Result received. Size: ${result.length}. Visible pixels: ${visibleCount}`);
+
                    
                    if (currentBoundsRef.current) {
                        setResultLayer({
@@ -219,7 +219,7 @@ export function useViewshedTool(active) {
             
             // 1. Get Tiles
             const targetTiles = getAdjacentTiles(centerTile);
-            console.log(`Analyzing ${targetTiles.length} tiles around ${lat}, ${lon} (Stitched)`);
+
             
             // 2. Fetch all in parallel
             const loadedTiles = await Promise.all(targetTiles.map(fetchAndDecodeTile));
@@ -233,8 +233,8 @@ export function useViewshedTool(active) {
             
             // 3. Stitch Tiles
             const stitched = stitchElevationGrids(validTiles, centerTile, 256);
-            console.log(`[Viewshed] Stitched Grid: ${stitched.width}x${stitched.height}. Data Len: ${stitched.data.length}`);
-            console.log(`[Viewshed] Center Elev Sample: ${stitched.data[Math.floor(stitched.data.length/2)]}`);
+
+
             
             // 4. Calculate Observer Position in Stitched Grid
             const observerCoords = transformObserverCoords(lat, lon, centerTile, stitched.width, stitched.height, 256);

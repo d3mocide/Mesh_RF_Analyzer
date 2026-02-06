@@ -1,6 +1,36 @@
 import React from 'react';
 
+const ToolbarButton = ({ active, onClick, color, children }) => (
+    <button 
+        onClick={onClick}
+        style={{
+            background: active ? color : '#222',
+            color: active ? '#000' : '#fff',
+            border: '1px solid #444',
+            padding: '0 12px',
+            height: '36px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            fontSize: '14px',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
+            whiteSpace: 'nowrap',
+            flexShrink: 0
+        }}
+    >
+        {children}
+    </button>
+);
+
 const MapToolbar = ({ toolMode, setToolMode, resetToolState }) => {
+    const toggleMode = (mode) => {
+        resetToolState();
+        setToolMode(toolMode === mode ? 'none' : mode);
+    };
+
     return (
         <div className="tool-bar-wrapper" style={{
             position: 'absolute', 
@@ -31,130 +61,37 @@ const MapToolbar = ({ toolMode, setToolMode, resetToolState }) => {
               }
             `}</style>
             
-            <button 
-              onClick={() => {
-                  if (toolMode === 'link') {
-                      resetToolState();
-                      setToolMode('none');
-                  } else {
-                      resetToolState();
-                      setToolMode('link');
-                  }
-              }}
-              style={{
-                  background: toolMode === 'link' ? '#00ff41' : '#222',
-                  color: toolMode === 'link' ? '#000' : '#fff',
-                  border: '1px solid #444',
-                  padding: '0 12px',
-                  height: '36px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                  fontSize: '14px',
-                  boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0
-              }}
+            <ToolbarButton 
+                active={toolMode === 'link'} 
+                onClick={() => toggleMode('link')}
+                color="#00ff41"
             >
-              Link Analysis
-            </button>
+                Link Analysis
+            </ToolbarButton>
     
-            <button 
-              onClick={() => {
-                  if(toolMode === 'optimize') {
-                      resetToolState();
-                      setToolMode('none');
-                  } else {
-                      resetToolState();
-                      setToolMode('optimize');
-                  }
-              }}
-              style={{
-                  background: toolMode === 'optimize' ? '#00f2ff' : '#222',
-                  color: toolMode === 'optimize' ? '#000' : '#fff',
-                  border: '1px solid #444',
-                  padding: '0 12px',
-                  height: '36px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                  fontSize: '14px',
-                  boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0
-              }}
+            <ToolbarButton 
+                active={toolMode === 'optimize'} 
+                onClick={() => toggleMode('optimize')}
+                color="#00f2ff"
             >
-              {toolMode === 'optimize' ? 'Cancel Finder' : 'Site Finder'}
-            </button>
+                {toolMode === 'optimize' ? 'Cancel Finder' : 'Site Finder'}
+            </ToolbarButton>
     
-            <button 
-              onClick={() => {
-                  if(toolMode === 'viewshed') {
-                      resetToolState();
-                      setToolMode('none');
-                  } else {
-                      resetToolState();
-                      setToolMode('viewshed');
-                  }
-              }}
-              style={{
-                  // display: 'none', // Hidden - requires backend server at localhost:5001
-                  background: toolMode === 'viewshed' ? '#a855f7' : '#222',
-                  color: toolMode === 'viewshed' ? '#000' : '#fff',
-                  border: '1px solid #444',
-                  padding: '0 12px',
-                  height: '36px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                  fontSize: '14px',
-                  boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0
-              }}
+            <ToolbarButton 
+                active={toolMode === 'viewshed'} 
+                onClick={() => toggleMode('viewshed')}
+                color="#a855f7"
             >
-              Viewshed
-            </button>
+                Viewshed
+            </ToolbarButton>
             
-            <button 
-              onClick={() => {
-                  if(toolMode === 'rf_coverage') {
-                      resetToolState();
-                      setToolMode('none');
-                  } else {
-                      resetToolState();
-                      setToolMode('rf_coverage');
-                  }
-              }}
-              style={{
-                  background: toolMode === 'rf_coverage' ? '#ff6b00' : '#222',
-                  color: toolMode === 'rf_coverage' ? '#000' : '#fff',
-                  border: '1px solid #444',
-                  padding: '0 12px',
-                  height: '36px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                  fontSize: '14px',
-                  boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0
-              }}
+            <ToolbarButton 
+                active={toolMode === 'rf_coverage'} 
+                onClick={() => toggleMode('rf_coverage')}
+                color="#ff6b00"
             >
-              RF Simulator
-            </button>
+                RF Simulator
+            </ToolbarButton>
         </div> {/* Close scroll container */}
         
         {/* Scroll Hint Overlay */}
