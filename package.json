@@ -1,7 +1,7 @@
 {
-  "name": "mesh-analyzer",
+  "name": "meshrf",
   "private": true,
-  "version": "1.7.9",
+  "version": "1.9.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

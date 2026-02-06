@@ -1,34 +1,33 @@
-# Release v1.8.0: The "Physics Purist" Upgrade 📡
+# Release v1.9.0: The "Pro-Max PWA" Upgrade 📱
 
-This major release overhauls the RF propagation engine, shifting the "Center of Physics" from the browser to a high-fidelity Python backend. It introduces the industry-standard **Longley-Rice (ITM)** model and ensures mission-critical accuracy for link planning.
+This release transforms MeshRF into a high-fidelity Progressive Web App (PWA), specifically optimized for field use on iOS and mobile devices. We've smoothed out the rough edges of mobile browser interfaces to provide a truly native feel.
 
 ## 🌟 Key Features
 
-### 1. New Propagation Models
+### 1. iOS "Pro-Max" Experience
 
-- **Longley-Rice (ITM)**: Now the **Default** model. Uses high-fidelity Bullington Diffraction (Knife-Edge) to accurately model signal loss over irregular terrain (hills, ridges, valleys). This is a massive upgrade from simple Line-of-Sight checks.
-- **Okumura-Hata (Server-Side)**: Fully ported the statistical urban model to the Python backend. ideal for city usage where buildings dominate.
-- **Free Space (Optimistic)**: Retained as a baseline for comparison.
+- **Safe-Area Aware**: All toolbars, panels, and notifications now dynamicallly adjust to bypass the iPhone notch and system home indicators.
+- **Dynamic Viewport (100dvh)**: Eliminated the annoying "double scrollbar" and layout jumping typical of mobile Safari.
+- **Native Touch Latency**: Implemented `touch-action: manipulation` and disabled overscroll rubber-banding for a snappy, app-like response.
 
-### 2. Architecture Overhaul
+### 2. Intelligent PWA Lifecycle
 
-- **Python-First Physics**: All RF path loss calculations now run on `rf-engine` (FastAPI) using `NumPy` and `SciPy`. The Frontend is now a lightweight visualization layer.
-- **Async Calculation**: Complex terrain analysis runs asynchronously, keeping the UI silky smooth even for long-distance link checks.
+- **User-Prompted Updates**: MeshRF now intelligently detects updates and prompts you to refresh, ensuring you never lose active planning data unexpectedly.
+- **Offline Reliability**: New **Offline Indicator** lets you know exactly when you're operating on local cached data vs. live backend physics.
 
-### 3. UI/UX Polish
+### 3. Responsive Site Finder
 
-- **Link Analysis Panel**: Redesigned to support Model Selection and Environment Tuning.
-- **Expanded Layout**: Wider and taller panel defaults (380x620px) to accommodate detailed charts and controls.
-- **Dynamic Legend**: Interactive tooltips and status indicators updated to reflect the selected physics model.
+- **Grid Redesign**: The Site Selection Weights panel has been completely overhauled with a clean, grid-based UI for effortless weight adjustment on small screens.
+- **Glassmorphism Design**: Enhanced backgrounds with high-intensity blur for maximum legibility over map terrain.
 
-## 🛠️ Technical Details
+## 🛠️ Technical Fixes
 
-- **Backend**: Added `calculate_path_loss` dispatcher and `calculate_bullington_loss` implementation.
-- **Frontend**: Refactored `rfMath.js` to remove legacy client-side math.
-- **Dependencies**: Added `pyitm` (future proofing) and optimized `scipy` usage.
+- **Physics Engine Handshake**: Fixed a crash in link analysis caused by legacy frontend path loss remnants.
+- **SW Destructuring Fix**: Resolved a critical "Symbol.iterator" error in the Service Worker update hook.
+- **High-Res Assets**: Added a high-resolution `apple-touch-icon.png` for a premium home screen presence.
 
 ## 🚀 How to Upgrade
 
 1. Pull the latest changes: `git pull origin main`
-2. Rebuild the engine container: `docker compose build rf-engine`
-3. Restart services: `docker compose up -d`
+2. **Clear Cache**: If using as a PWA, wait for the **Update Available** prompt and click **Refresh Now**.
+3. Docker restart (optional but recommended): `docker compose up -d`

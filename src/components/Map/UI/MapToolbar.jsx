@@ -4,7 +4,7 @@ const MapToolbar = ({ toolMode, setToolMode, resetToolState }) => {
     return (
         <div className="tool-bar-wrapper" style={{
             position: 'absolute', 
-            top: 20, 
+            top: 'calc(var(--safe-area-top, 0px) + 20px)', 
             left: 20, 
             zIndex: 1000,
             maxWidth: 'calc(100vw - 40px)', // Constrain width on mobile

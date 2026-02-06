@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-02-06
+
+### Added
+
+- **Full PWA Native Experience**:
+  - Implemented `OfflineIndicator` to notify users when network connectivity is lost.
+  - Added `UpdatePrompt` for intelligent, user-controlled application updates.
+  - New high-resolution `apple-touch-icon.png` for iOS Home Screen parity.
+- **iOS "Pro Max" Optimizations**:
+  - Full support for **safe-area-insets** (notch/pill aware) across all overlays and toolbars.
+  - Adopted `100dvh` (Dynamic Viewport Height) to prevent layout shifts on mobile Safari.
+  - Native gesture support: `touch-action: manipulation` for zero-latency taps and overscroll prevention.
+- **Responsive Site Finder**: Clean, grid-based redesign of the Site Selection Weights panel for mobile touch targets.
+
+### Fixed
+
+- **Physics Engine Handshake**: Resolved `SyntaxError` caused by legacy frontend path loss imports in `LinkLayer.jsx`. Integrated backend `calculateLink` for all statistical models.
+- **PWA Lifecycle Crash**: Fixed a critical destructuring error in the `useRegisterSW` hook within `UpdatePrompt`.
+
 ## [1.8.0] - 2026-02-05
 
 ### Added

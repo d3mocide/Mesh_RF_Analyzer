@@ -8,25 +8,26 @@
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
     <title>MeshRF</title>
+    <!-- PWA / iOS Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="meshRF" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#0a0a0f" />
+
     <!-- Runtime Environment Variables (Docker) -->
     <script src="/env-config.js"></script>
   </head>
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      background-color: #0a0a0f; /* Immediate dark theme */
-      color: #ffffff;
-      font-family: system-ui, -apple-system, sans-serif;
-      overflow: hidden;
-      height: 100%;
-    }
     .loader-container {
       display: flex;
       flex-direction: column; /* Stack vertically */
       justify-content: center;
       align-items: center;
-      height: 100vh;
+      height: 100dvh;
       width: 100vw;
       gap: 24px; /* Space between text and spinner */
     }
@@ -49,7 +50,9 @@
       animation: spin 1s linear infinite;
     }
     @keyframes spin {
-      to { transform: rotate(360deg); }
+      to {
+        transform: rotate(360deg);
+      }
     }
   </style>
   <body>
