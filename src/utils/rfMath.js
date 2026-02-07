@@ -62,13 +62,14 @@ export const calculateLinkBudget = ({
   bw,
 
   pathLossOverride = null,
-  excessLoss = 0
+  excessLoss = 0,
+  fadeMargin = 10,
 }) => {
   const fspl = pathLossOverride !== null ? pathLossOverride : calculateFSPL(distanceKm, freqMHz);
 
   // Estimated RSSI at receiver
-  // RSSI = Ptx + Gtx - Ltx - PathLoss - ExcessLoss + Grx - Lrx
-  const rssi = txPower + txGain - txLoss - fspl - excessLoss + rxGain - rxLoss;
+  // RSSI = Ptx + Gtx - Ltx - PathLoss - ExcessLoss - FadeMargin + Grx - Lrx
+  const rssi = txPower + txGain - txLoss - fspl - excessLoss - fadeMargin + rxGain - rxLoss;
 
   // Receiver Sensitivity Calculation (Semtech SX1262 approx)
   // S = -174 + 10log10(BW) + NF + SNR_limit
@@ -268,92 +269,7 @@ export const analyzeLinkProfile = (
   };
 };
 
-/**
- * Calculate Mobile Station Height Correction Factor a(hm) for Okumura-Hata
- * @param {number} freqMHz
- * @param {number} rxHeightM
- * @param {string} environment
- * @returns {number} Correction factor inside the formula
- */
-const _calculateMobileHeightCorrection = (freqMHz, rxHeightM, environment) => {
-  // For small/medium city
-  // a(hm) = (1.1 * log(f) - 0.7) * hm - (1.56 * log(f) - 0.8)
-  const logF = Math.log10(freqMHz);
 
-  if (environment === "urban_large") {
-    // Large city rules:
-    // f <= 200MHz: a(hm) = 8.29 * (log(1.54 * hm))^2 - 1.1
-    // f >= 400MHz: a(hm) = 3.2 * (log(11.75 * hm))^2 - 4.97
-    // We are usually 915MHz (>= 400)
-    if (freqMHz >= 400) {
-      return 3.2 * Math.pow(Math.log10(11.75 * rxHeightM), 2) - 4.97;
-    } else {
-      return 8.29 * Math.pow(Math.log10(1.54 * rxHeightM), 2) - 1.1;
-    }
-  }
-
-  // Default / Small-Medium City / Suburban / Rural base correction
-  return (1.1 * logF - 0.7) * rxHeightM - (1.56 * logF - 0.8);
-};
-
-/**
- * Calculate Okumura-Hata Path Loss (Empirical)
- * Valid for: 150-1500 MHz, 1-20km (often stretched to 100km), Tx 30-200m, Rx 1-10m
- * @param {number} distanceKm - Link Distance
- * @param {number} freqMHz - Frequency
- * @param {number} txHeightM - Transmitter Height (Effective)
- * @param {number} rxHeightM - Receiver Height (Effective)
- * @param {string} environment - 'urban_small', 'urban_large', 'suburban', 'rural'
- * @returns {number} Path Loss in dB
- */
-export const calculateOkumuraHata = (
-  distanceKm,
-  freqMHz,
-  txHeightM,
-  rxHeightM,
-  environment = "suburban",
-) => {
-  if (distanceKm <= RF_CONSTANTS.HATA.LIMITS.MIN_DIST_KM) return calculateFSPL(distanceKm, freqMHz); // Fallback for very short links
-
-  // Hata restrictions (technically):
-  // f: 150-1500 MHz (Meshtastic 433/868/915 is perfect)
-  // hb: 30-200m (We accept lower, formula holds but precision degrades)
-  // hm: 1-10m
-  // d: 1-20 km
-
-  // Clamp heights to avoid log(0)
-  const hb = Math.max(RF_CONSTANTS.HATA.LIMITS.MIN_HEIGHT, txHeightM);
-  const hm = Math.max(RF_CONSTANTS.HATA.LIMITS.MIN_HEIGHT, rxHeightM);
-  const d = Math.max(RF_CONSTANTS.HATA.LIMITS.MIN_DIST_KM, distanceKm);
-  const f = freqMHz;
-
-  const logF = Math.log10(f);
-  const logHb = Math.log10(hb);
-  const logD = Math.log10(d);
-
-  // 1. Calculate Urban Loss (Basis)
-  // Lu = 69.55 + 26.16*log(f) - 13.82*log(hb) - a(hm) + (44.9 - 6.55*log(hb))*log(d)
-  const a_hm = _calculateMobileHeightCorrection(f, hm, environment);
-
-  let loss =
-    RF_CONSTANTS.HATA.URBAN_BASE + 
-    RF_CONSTANTS.HATA.FREQ_SCALE * logF - 
-    RF_CONSTANTS.HATA.HB_SCALE * logHb - 
-    a_hm + 
-    (RF_CONSTANTS.HATA.DISTANCE_BASE - RF_CONSTANTS.HATA.DISTANCE_HB_SCALE * logHb) * logD;
-
-  // 2. Apply Environmental Extensions
-  if (environment === "suburban") {
-    // Lsub = Lu - 2*(log(f/28))^2 - 5.4
-    const val = Math.log10(f / 28);
-    loss = loss - 2 * (val * val) - 5.4;
-  } else if (environment === "rural") {
-    // Lrural = Lu - 4.78*(log(f))^2 + 18.33*log(f) - 40.94
-    loss = loss - 4.78 * (logF * logF) + 18.33 * logF - 40.94;
-  }
-
-  return parseFloat(loss.toFixed(2));
-};
 
 /**
  * Calculate Bullington Diffraction Loss (simplified)
@@ -441,9 +357,10 @@ export const calculateBullingtonDiffraction = (profile, freqMHz, txHeightAGL, rx
 
     let diffractionLoss = 0;
     
-    if (maxV > -0.7) {
-        // Approximate Diffraction Loss formula
-        const val = maxV + Math.sqrt(maxV * maxV + 1);
+    if (maxV > -0.78) {
+        // ITU-R P.526-14 Equation 31: J(v) = 6.9 + 20*log10(sqrt((v-0.1)^2 + 1) + v - 0.1)
+        const term = maxV - 0.1;
+        const val = Math.sqrt(term * term + 1) + term;
         diffractionLoss = 6.9 + 20 * Math.log10(val);
     }
     

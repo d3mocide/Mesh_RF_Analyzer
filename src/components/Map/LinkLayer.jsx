@@ -4,8 +4,9 @@ import { useMapEvents, Marker, Polyline, Popup, Polygon } from 'react-leaflet';
 import L from 'leaflet';
 import { useRF } from '../../context/RFContext';
 import { DEVICE_PRESETS } from '../../data/presets';
-import { calculateLinkBudget, calculateFresnelRadius, calculateFresnelPolygon, analyzeLinkProfile, calculateOkumuraHata, calculateBullingtonDiffraction } from '../../utils/rfMath';
+import { calculateLinkBudget, calculateFresnelRadius, calculateFresnelPolygon, analyzeLinkProfile, calculateBullingtonDiffraction } from '../../utils/rfMath';
 import { fetchElevationPath } from '../../utils/elevation';
+import { calculateLink } from '../../utils/rfService';
 import useThrottledCalculation from '../../hooks/useThrottledCalculation';
 import * as turf from '@turf/turf';
 
@@ -68,28 +69,41 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
         
         setLinkStats(prev => ({ ...prev, loading: true }));
         
-        // Use LATEST config from ref, not closure
         const currentConfig = configRef.current;
         const h1 = parseFloat(currentConfig.nodeConfigs.A.antennaHeight);
         const h2 = parseFloat(currentConfig.nodeConfigs.B.antennaHeight);
         const currentFreq = currentConfig.freq;
+        const currentModel = propagationSettings?.model?.toLowerCase() || 'fspl';
+        const currentEnv = propagationSettings?.environment || 'suburban';
 
-        fetchElevationPath(p1, p2)
-            .then(profile => {
-                const stats = analyzeLinkProfile(
-                    profile, 
-                    currentFreq, 
-                    h1, h2, 
-                    currentConfig.kFactor, 
-                    currentConfig.clutterHeight
-                );
-                setLinkStats(prev => ({ ...prev, ...stats, loading: false }));
-            })
-            .catch(err => {
-                console.error("Link Analysis Failed", err);
-                setLinkStats(prev => ({ ...prev, loading: false, isObstructed: false, minClearance: 0 }));
-            });
-    }, [setLinkStats]); // Empty deps! Stable function.
+        // Parallel fetch: Elevation for profile/chart, and Path Loss from Backend
+        Promise.all([
+            fetchElevationPath(p1, p2),
+            (currentModel === 'hata' || currentModel === 'itm') 
+                ? calculateLink(p1, p2, currentFreq, h1, h2, currentModel, currentEnv)
+                : Promise.resolve(null)
+        ])
+        .then(([profile, backendResult]) => {
+            const stats = analyzeLinkProfile(
+                profile, 
+                currentFreq, 
+                h1, h2, 
+                currentConfig.kFactor, 
+                currentConfig.clutterHeight
+            );
+
+            // If we have a backend result, use its path loss instead of frontend FSPL
+            if (backendResult && backendResult.path_loss_db) {
+                stats.backendPathLoss = backendResult.path_loss_db;
+            }
+
+            setLinkStats(prev => ({ ...prev, ...stats, loading: false }));
+        })
+        .catch(err => {
+            console.error("Link Analysis Failed", err);
+            setLinkStats(prev => ({ ...prev, loading: false, isObstructed: false, minClearance: 0 }));
+        });
+    }, [setLinkStats, propagationSettings]);
 
     useEffect(() => {
         if (nodes.length === 2) {
@@ -218,17 +232,6 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
     const configA = nodeConfigs.A;
     const configB = nodeConfigs.B;
 
-    let pathLossVal = null;
-    if (propagationSettings?.model === 'Hata') {
-          pathLossVal = calculateOkumuraHata(
-              distance, 
-              freq, 
-              configA.antennaHeight, 
-              configB.antennaHeight, 
-              propagationSettings.environment
-            );
-    }
-    
     const budget = calculateLinkBudget({
         txPower: configA.txPower, 
         txGain: configA.antennaGain, 
@@ -238,7 +241,7 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
         distanceKm: distance, 
         freqMHz: freq,
         sf, bw,
-        pathLossOverride: pathLossVal
+        pathLossOverride: linkStats.backendPathLoss || null
     });
     
     // Calculate Diffraction Loss (Bullington) for visualization

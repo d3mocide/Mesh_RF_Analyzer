@@ -7,13 +7,4 @@ mercantile
 Pillow
 redis
 scipy
-<<<<<<< Updated upstream
-=======
 itmlogic
-celery
-sse-starlette
-pymoo
-networkx
-scikit-learn
-numba
->>>>>>> Stashed changes

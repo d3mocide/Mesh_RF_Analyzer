@@ -12,11 +12,23 @@ const SiteSelectionSettings = ({ weights, setWeights, active }) => {
     };
 
     const containerStyle = {
+        position: 'absolute',
+        top: isMobile ? 'calc(var(--safe-area-top, 0px) + 80px)' : 'calc(var(--safe-area-top, 0px) + 90px)',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        background: 'rgba(10, 10, 18, 0.98)',
+        border: '1px solid #00f2ff55',
+        borderRadius: '16px',
+        padding: '16px 20px',
+        zIndex: 1001,
         display: 'flex',
         flexDirection: 'column',
         gap: '12px',
-        width: '100%',
-        animation: 'fadeIn 0.3s ease',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
+        backdropFilter: 'blur(16px)',
+        width: isMobile ? 'calc(100% - 32px)' : '420px',
+        maxWidth: '90vw',
+        animation: 'slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
         userSelect: 'none'
     };
 
@@ -74,7 +86,7 @@ const SiteSelectionSettings = ({ weights, setWeights, active }) => {
                         }}>
                              <label style={{
                                 color: '#888', 
-                                fontSize: '0.9em', 
+                                fontSize: '0.65em', 
                                 textTransform: 'uppercase', 
                                 fontWeight: 'bold'
                             }}>
@@ -82,7 +94,7 @@ const SiteSelectionSettings = ({ weights, setWeights, active }) => {
                             </label>
                             <span style={{
                                 color: '#00f2ff', 
-                                fontSize: '0.9em', 
+                                fontSize: '0.8em', 
                                 fontWeight: '900', 
                                 fontFamily: 'monospace'
                             }}>
@@ -95,8 +107,6 @@ const SiteSelectionSettings = ({ weights, setWeights, active }) => {
                             min="0" max="1" step="0.1" 
                             value={weights[key]} 
                             onChange={(e) => handleChange(key, e.target.value)}
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onTouchStart={(e) => e.stopPropagation()}
                             style={{ 
                                 width: '100%', 
                                 accentColor: '#00f2ff',

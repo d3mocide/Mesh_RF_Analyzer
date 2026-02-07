@@ -33,11 +33,12 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
     }
 
     // Recalculate margin with diffraction loss if applicable
+    // Recalculate margin with diffraction loss if applicable
     let margin = budget ? budget.margin : 0;
-    if (diffractionLoss > 0) {
-        margin -= diffractionLoss;
-        margin = parseFloat(margin.toFixed(2));
-    }
+    // We do NOT subtract diffractionLoss from margin here anymore,
+    // because the backend model (ITM/Hata) likely already accounts for it.
+    // For FSPL, we keep it optimistic (as requested).
+    // The "Obstruction Loss" box provides the warning.
     
     // WISP Ratings
     const quality = linkStats.linkQuality || 'Obstructed (-)';
@@ -80,8 +81,8 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
     // Responsive Chart Logic
     const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
     const [panelSize, setPanelSize] = React.useState({ 
-        width: isMobile ? window.innerWidth : 320, 
-        height: isMobile ? 480 : 520 
+        width: isMobile ? window.innerWidth : 400, 
+        height: isMobile ? 480 : 620 
     });
 
     React.useEffect(() => {
@@ -106,7 +107,7 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
     if (nodes.length !== 2) return null;
 
     // Calculate Dimensions directly (Derived State)
-    let layoutOffset = 315; // Adjusted to prevent Legend overlap
+    let layoutOffset = 360; // Adjusted for 2-row controls + Legend
     if (diffractionLoss > 0) {
         layoutOffset += 50; // Compensate for Obstruction Loss warning box
     }
@@ -140,7 +141,7 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
 
             return {
                 width: Math.max(300, newWidth),
-                height: Math.max(450, newHeight)
+                height: Math.max(550, newHeight)
             };
         });
     };
@@ -370,15 +371,57 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
             {/* Propagation Configuration */}
             {propagationSettings && (
                 <div style={{ mb: '12px', padding: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', marginBottom: '12px', position: 'relative' }}>
-                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'space-between' }}>
+                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                         {/* Row 1: Model & Help */}
+                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                 <label style={{ fontSize: '0.75em', color: '#888', minWidth: '40px' }} htmlFor="prop-model">Model:</label>
+                                 <select 
+                                    id="prop-model"
+                                    name="prop-model"
+                                    value={propagationSettings.model || "fspl"}
+                                    onChange={(e) => setPropagationSettings(prev => ({ ...prev, model: e.target.value }))}
+                                    style={{ background: '#222', color: '#00f2ff', border: '1px solid #444', padding: '4px', borderRadius: '4px', fontSize: '0.8em', fontWeight: 'bold' }}
+                                 >
+                                    <option value="fspl">Free Space (Optimistic)</option>
+                                    <option value="itm">Longley-Rice (Terrain)</option>
+                                    <option value="hata">Okumura-Hata (Statistical)</option>
+                                 </select>
+                             </div>
+
+                             {/* Model Info Tooltip moved here */}
+                             <div 
+                                onClick={() => setShowModelHelp(!showModelHelp)}
+                                style={{ 
+                                    position: 'relative', 
+                                    cursor: 'pointer',
+                                    color: '#00f2ff',
+                                    fontSize: '0.85em',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    padding: '4px',
+                                    background: showModelHelp ? 'rgba(0, 242, 255, 0.1)' : 'transparent',
+                                    borderRadius: '4px',
+                                    gap: '4px'
+                                }} title="Click for Model Comparison Guide">
+                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                 </svg>
+                                 <span style={{ fontSize: '0.8em' }}>{showModelHelp ? 'Hide Info' : (propagationSettings.model === 'itm' ? 'Longley-Rice Info' : (propagationSettings.model === 'hata' ? 'Hata Info' : 'Model Info'))}</span>
+                             </div>
+                         </div>
+
+                         {/* Row 2: Env Selector */}
                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <label style={{ fontSize: '0.75em', color: '#888' }} htmlFor="prop-env">Env:</label>
+                            <label style={{ fontSize: '0.75em', color: '#888', minWidth: '40px' }} htmlFor="prop-env">Env:</label>
                             <select 
                                 id="prop-env"
                                 name="prop-env"
                                 value={propagationSettings.environment}
                                 onChange={(e) => setPropagationSettings(prev => ({ ...prev, environment: e.target.value }))}
-                                style={{ background: '#222', color: '#fff', border: '1px solid #444', padding: '4px', borderRadius: '4px', fontSize: '0.8em' }}
+                                style={{ background: '#222', color: '#fff', border: '1px solid #444', padding: '4px', borderRadius: '4px', fontSize: '0.8em', flexGrow: 1 }}
                             >
                                 <option value="urban_small">Urban (Small/Medium)</option>
                                 <option value="urban_large">Urban (Large)</option>
@@ -386,30 +429,9 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
                                 <option value="rural">Rural / Open</option>
                             </select>
                          </div>
-                         
-                         {/* Model Info Tooltip */}
-                         <div 
-                            onClick={() => setShowModelHelp(!showModelHelp)}
-                            style={{ 
-                                position: 'relative', 
-                                cursor: 'pointer',
-                                color: '#00f2ff',
-                                fontSize: '0.85em',
-                                display: 'flex',
-                                alignItems: 'center',
-                                padding: '4px',
-                                background: showModelHelp ? 'rgba(0, 242, 255, 0.1)' : 'transparent',
-                                borderRadius: '4px',
-                                gap: '4px'
-                            }} title="Click for Model Comparison Guide">
-                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <line x1="12" y1="16" x2="12" y2="12"></line>
-                                <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                             </svg>
-                             <span style={{ fontSize: '0.8em' }}>{showModelHelp ? 'Hide Info' : 'Hata Model'}</span>
-                         </div>
                      </div>
+                         
+
                      
                 </div>
             )}
@@ -426,7 +448,7 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
                 </div>
                 <div>
                     <div style={{ color: '#888', fontSize: '0.85em' }}>RSSI</div>
-                    <div style={{ fontSize: '1.1em' }}>{budget.rssi} dBm</div>
+                    <div style={{ fontSize: '1.1em' }}>{budget ? budget.rssi : '--'} dBm</div>
                 </div>
                 <div>
                     <div style={{ color: '#888', fontSize: '0.85em' }}>First Fresnel</div>

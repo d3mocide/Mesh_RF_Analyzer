@@ -29,7 +29,7 @@ export const useRFCoverageTool = (active) => {
         }).then(Module => {
             if (mounted) {
                 wasmModuleRef.current = Module;
-                console.log('RF Coverage Wasm Module Loaded');
+
             }
         }).catch(err => {
             console.error('Failed to load RF Coverage Wasm:', err);
@@ -114,7 +114,7 @@ export const useRFCoverageTool = (active) => {
             const centerTile = getTile(lat, lng, zoom);
             
             // 2. Fetch 3x3 Grid
-            console.log(`[RF Coverage] Analyzing 3x3 Grid around ${lat}, ${lng} (z${zoom})`);
+
             const targetTiles = getAdjacentTiles(centerTile);
             const loadedTiles = await Promise.all(targetTiles.map(fetchTile));
             const validTiles = loadedTiles.filter(t => t !== null);
@@ -138,19 +138,17 @@ export const useRFCoverageTool = (active) => {
 
             const maxDistPixels = Math.floor(maxDist / gsd);
             
-            console.log(`[RF Coverage] Stitched Grid: ${stitched.width}x${stitched.height}. TX: (${txCoords.x}, ${txCoords.y}). GSD: ${gsd.toFixed(2)}m`);
+
             
             // 6. Allocate Wasm Memory
             const byteSize = stitched.data.length * 4;
-            console.log(`[RF Coverage] Allocating ${byteSize} bytes for elevation grid`);
+
             const ptr = Module._malloc(byteSize);
             Module.HEAPF32.set(stitched.data, ptr / 4);
             
             // 7. Call Wasm RF Coverage Function
             console.time("RF_Coverage_WASM_Execution");
-            console.log(`[RF Coverage] Calling Wasm calculate_rf_coverage with params:`, {
-                width: stitched.width, height: stitched.height, tx: {x: txCoords.x, y: txCoords.y, h: txHeight}, maxDistPixels, gsd
-            });
+
 
             const resultVec = Module.calculate_rf_coverage(
                 ptr,
@@ -177,7 +175,7 @@ export const useRFCoverageTool = (active) => {
                 resultArr[i] = resultVec.get(i);
             }
             
-            console.log('[RF Coverage] Calculation Complete. Result Size:', resultArr.length);
+
             
             // Calculate stats
             let minVal = Infinity, maxVal = -Infinity, validCount = 0;
@@ -188,7 +186,7 @@ export const useRFCoverageTool = (active) => {
                     validCount++;
                 }
             }
-            console.log(`[RF Coverage] Signal Stats: Min=${minVal.toFixed(1)} dBm, Max=${maxVal.toFixed(1)} dBm, ValidPix=${validCount}`);
+
             
             // SIMPLIFIED: Pass raw dBm values directly
             // Convert to plain Array immediately to preserve data

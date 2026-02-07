@@ -243,10 +243,19 @@ const OptimizationResultsPanel = ({ results, onClose, onCenter, onReset, onRecal
 
                         {/* Info */}
                         <div style={{ flexGrow: 1 }}>
-                            <div style={{ fontSize: '1em', color: '#ccc', marginBottom: '2px' }}>
-                                Elevation: <span style={{ color: '#fff', fontWeight: 600 }}>{Math.round(node.elevation)}m</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '2px' }}>
+                                <span style={{ color: '#00f2ff', fontWeight: 700, fontSize: '1.1em' }}>{node.score}</span>
+                                <span style={{ color: '#bbb', fontSize: '0.9em' }}>Score</span>
                             </div>
-                            <div style={{ fontSize: '0.85em', color: '#666', fontFamily: 'monospace' }}>
+                            <div style={{ fontSize: '0.9em', color: '#ccc' }}>
+                                Elev: <span style={{ color: '#fff' }}>{Math.round(node.elevation)}m</span>
+                                {node.prominence > 5 && (
+                                    <span style={{ marginLeft: '8px', color: '#ffd700', fontSize: '0.85em' }}>
+                                        ★ Prom: {Math.round(node.prominence)}m
+                                    </span>
+                                )}
+                            </div>
+                            <div style={{ fontSize: '0.75em', color: '#666', fontFamily: 'monospace', marginTop: '2px' }}>
                                 {node.lat.toFixed(5)}, {node.lon.toFixed(5)}
                             </div>
                         </div>

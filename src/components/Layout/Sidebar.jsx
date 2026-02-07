@@ -94,7 +94,7 @@ const Sidebar = () => {
         title={isOpen ? "Collapse Sidebar" : "Expand Sidebar"}
         style={{
             position: isMobile ? 'fixed' : 'absolute', // Stay with sidebar
-            top: '76px',
+            top: 'calc(var(--safe-area-top, 0px) + 76px)',
             left: isOpen ? '330px' : '15px', // Floating to the right
             zIndex: 2010, // Above sidebar (2000)
             background: 'var(--color-primary)',
@@ -119,8 +119,11 @@ const Sidebar = () => {
         width: isOpen ? '320px' : '0px',
         background: 'var(--color-bg-panel)',
         borderRight: '1px solid var(--color-border)',
-        height: '100vh',
-        padding: isOpen ? 'var(--spacing-md)' : '0px',
+        height: '100dvh',
+        paddingTop: isOpen ? 'calc(var(--safe-area-top, 0px) + var(--spacing-md))' : '0px',
+        paddingLeft: isOpen ? 'var(--spacing-md)' : '0px',
+        paddingRight: isOpen ? 'var(--spacing-md)' : '0px',
+        paddingBottom: isOpen ? 'calc(var(--safe-area-bottom, 0px) + var(--spacing-md))' : '0px',
         display: 'flex',
         flexDirection: 'column',
         zIndex: 2000,

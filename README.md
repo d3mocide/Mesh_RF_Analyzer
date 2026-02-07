@@ -1,6 +1,6 @@
-# meshRF 📡 v1.7.6
+# meshRF 📡 v1.9.0
 
-A professional-grade RF propagation and link analysis tool designed for LoRa Mesh networks (Meshtastic, Reticulum, Sidewinder). Built with **React**, **Leaflet**, and a high-fidelity **Geodetic Physics Engine**.
+A professional-grade RF propagation and link analysis tool designed for LoRa Mesh networks (Meshtastic, Reticulum, Sidewinder). Built with **React**, **Leaflet**, and a high-fidelity **Python Geodetic Physics Engine**.
 
 meshRF is designed for **mission-critical availability**. It operates with **zero external API dependencies** for elevation data, serving high-resolution terrain data directly from self-hosted containers. Currently we do rely on exteranl API's for map tiles but that will be updated soon as well for full offline use. (optional)
 
@@ -10,10 +10,13 @@ meshRF is designed for **mission-critical availability**. It operates with **zer
 
 ### 1. 📡 High-Fidelity RF Analysis
 
-- **Geodetic Physics**: Calculates Earth Bulge and effective terrain height based on link distance and configurable **K-Factor**.
-- **Empirical Modeling**: Includes **Okumura-Hata** for realistic urban/suburban path loss (150-1500MHz).
+- **Server-Side Physics**: All calculations now run on a dedicated Python backend using **NumPy** and **SciPy** for maximum accuracy.
+- **Advanced Models**:
+  - **ITM (Longley-Rice)**: The gold standard for irregular terrain modeling (via Bullington Diffraction).
+  - **Okumura-Hata**: Ported to backend for consistent statistical urban modeling.
+  - **Free Space**: Optimistic baseline comparison.
 - **Asymmetric Links**: Configure unique hardware (power, gain, height) for Node A and Node B independently.
-- **Dynamic Fresnel visualization**: Real-time 2D profiles showing LOS and Fresnel zone clearance.
+- **Dynamic Fresnel visualization**: Real-time 2D profiles showing LOS and Fresnel zone clearance using backend-generated geometry.
 
 ### 2. 📍 Advanced Site Surveying
 
@@ -101,8 +104,8 @@ You can customize the application behavior by setting environment variables in `
 
 ## 🏗️ Architecture
 
-- **Frontend**: React + Leaflet + Vite. Heavy RF math handled via **C++/Wasm** for near-native performance.
-- **RF Engine**: FastAPI Python service. Features connection pooling and parallelized tile fetching for near-instant elevation profiles.
+- **Frontend**: React + Leaflet + Vite.
+- **RF Engine**: FastAPI Python service. Now the central **Physics Authority**, handling all propagation models (ITM, Hata, FSPL) and terrain profiling.
 - **OpenTopoData**: Self-hosted elevation API providing geodetic data without external requests or rate limits.
 - **Redis**: High-speed caching layer for terrain and analysis results.
 

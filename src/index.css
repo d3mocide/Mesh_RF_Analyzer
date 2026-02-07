@@ -1,5 +1,20 @@
 @import "./styles/variables.css";
 
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: #0a0a0f;
+  color: #ffffff;
+  font-family: system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+  height: 100dvh;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  overscroll-behavior: none;
+}
+
 /* Leaflet map fix for layout */
 .leaflet-container {
   width: 100%;
@@ -14,7 +29,7 @@
 
 #root {
   width: 100%;
-  height: 100%;
+  height: 100dvh;
 }
 
 /* Custom Scrollbar */
@@ -92,8 +107,8 @@
 
 /* Mobile Layout Fixes */
 @media (max-width: 768px) {
-  /* Push Zoom Control down to avoid top toolbar overlap */
+  /* Push Zoom Control down to avoid top toolbar overlap (iOS PWA) */
   .leaflet-top.leaflet-right {
-    margin-top: 60px;
+    margin-top: calc(env(safe-area-inset-top, 0px) + 60px);
   }
 }

@@ -20,7 +20,7 @@ const createRankedIcon = (rank) => L.divIcon({
     iconAnchor: [12, 12]
 });
 
-const OptimizationLayer = ({ active, setActive, onStateUpdate }) => {
+const OptimizationLayer = ({ active, setActive, onStateUpdate, weights }) => {
     const [startPoint, setStartPoint] = useState(null);
     const [endPoint, setEndPoint] = useState(null);
     const [ghostNodes, setGhostNodes] = useState([]);
@@ -92,7 +92,7 @@ const OptimizationLayer = ({ active, setActive, onStateUpdate }) => {
         let finalGhostNodes = ghostNodes; 
 
         try {
-            const result = await optimizeLocation(bounds, freq, antennaHeight);
+            const result = await optimizeLocation(bounds, freq, antennaHeight, weights);
             if (result.status === 'success') {
                 setGhostNodes(result.locations);
                 finalGhostNodes = result.locations; // Update local ref for sync
