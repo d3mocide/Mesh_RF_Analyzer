@@ -7,40 +7,45 @@ const GuidanceOverlays = ({
     isMobile,
     viewshedObserver,
     rfObserver,
+    siteAnalysisMode,
     // Help Toggles
     linkHelp, setLinkHelp,
     elevationHelp, setElevationHelp,
     viewshedHelp, setViewshedHelp,
-    rfHelp, setRFHelp
+    rfHelp, setRFHelp,
+    isResultsVisible
 }) => {
+    if (isResultsVisible) return null;
+
+    const overlayStyle = {
+        position: 'absolute',
+        top: isMobile ? '80px' : 'auto', // Mobile: Top to avoid panel collision
+        bottom: isMobile ? 'auto' : 'calc(40px + env(safe-area-inset-bottom))', // Desktop: Bottom
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 1000,
+        background: 'rgba(10, 10, 15, 0.95)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        border: '1px solid #00f2ff88',
+        borderRadius: '12px',
+        padding: '12px 24px',
+        color: '#fff',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '4px',
+        animation: 'fadeIn 0.5s ease-out',
+        minWidth: '280px',
+        maxWidth: '90vw'
+    };
 
     return (
         <>
         {/* Contextual Guidance Overlays */}
         {toolMode === 'link' && nodes.length < 2 && (
-            <div style={{
-                position: 'absolute',
-                top: 'auto',
-                bottom: 'calc(40px + env(safe-area-inset-bottom))',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                zIndex: 1000,
-                background: 'rgba(10, 10, 15, 0.95)',
-                backdropFilter: 'blur(10px)',
-                WebkitBackdropFilter: 'blur(10px)',
-                border: '1px solid #00ff4188',
-                borderRadius: '12px',
-                padding: '12px 24px',
-                color: '#fff',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '4px',
-                animation: 'fadeIn 0.5s ease-out',
-                minWidth: '280px',
-                maxWidth: '90vw'
-            }}>
+            <div style={{ ...overlayStyle, border: '1px solid #00ff4188' }}>
                 <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px' }}>
                     <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#00ff41' }}>
                         Link Analysis Active
@@ -99,30 +104,9 @@ const GuidanceOverlays = ({
             </div>
         )}
     
-        {toolMode === 'optimize' && !optimizeState.loading && optimizeState.ghostNodes?.length === 0 && (
-            <div style={{
-                position: 'absolute',
-                top: 'auto',
-                bottom: 'calc(40px + env(safe-area-inset-bottom))',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                zIndex: 1000,
-                background: 'rgba(10, 10, 15, 0.95)',
-                backdropFilter: 'blur(10px)',
-                WebkitBackdropFilter: 'blur(10px)',
-                border: '1px solid #00f2ff88',
-                borderRadius: '12px',
-                padding: '12px 24px',
-                color: '#fff',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '4px',
-                animation: 'fadeIn 0.5s ease-out',
-                minWidth: '280px',
-                maxWidth: '90vw'
-            }}>
+        {/* Elevation Scan (Auto Mode) */}
+        {toolMode === 'optimize' && siteAnalysisMode === 'auto' && !optimizeState.loading && optimizeState.ghostNodes?.length === 0 && (
+            <div style={overlayStyle}>
                 <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px' }}>
                     <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#00f2ff' }}>
                         Elevation Scan Active
@@ -174,6 +158,66 @@ const GuidanceOverlays = ({
                             <li><strong>Area:</strong> Set two corners on the map to define the scan region.</li>
                             <li><strong>Analysis:</strong> The engine queries elevation data for points across the entire grid.</li>
                             <li><strong>Result:</strong> Top 5 highest spots are marked for potential transmitter sites.</li>
+                        </ul>
+                    </div>
+                )}
+            </div>
+        )}
+
+        {/* Multi-Site Manager (Manual Mode) */}
+        {toolMode === 'optimize' && siteAnalysisMode === 'manual' && (
+            <div style={overlayStyle}>
+                <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px' }}>
+                    <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#00f2ff' }}>
+                        Multi-Site Manager Active
+                    </div>
+                    <div 
+                        onClick={() => setElevationHelp(!elevationHelp)} // Reuse elevationHelp state for simplicity or add specific state
+                        style={{ 
+                            cursor: 'pointer', 
+                            color: '#00f2ff', 
+                            fontSize: '14px', 
+                            padding: '4px 8px',
+                            background: 'rgba(255,255,255,0.05)',
+                            borderRadius: '4px',
+                            fontWeight: 'bold',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                        }}
+                    >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="16" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                        <span>{elevationHelp ? 'Hide' : 'Help'}</span>
+                    </div>
+                </div>
+                
+                {!elevationHelp && (
+                    <div style={{ fontSize: '14px', color: '#ccc', textAlign: 'center' }}>
+                         Click map to add candidate sites.
+                    </div>
+                )}
+    
+                {elevationHelp && (
+                    <div style={{ 
+                        marginTop: '12px', 
+                        fontSize: '0.85em', 
+                        color: '#ddd', 
+                        borderTop: '1px solid rgba(255,255,255,0.1)', 
+                        paddingTop: '12px',
+                        whiteSpace: 'normal',
+                        wordBreak: 'break-word',
+                        width: '100%'
+                    }}>
+                        <div style={{ fontWeight: 'bold', color: '#00f2ff', marginBottom: '4px' }}>Multi-Site Management</div>
+                        <div style={{ marginBottom: '8px' }}>Manually place and compare multiple potential locations.</div>
+                        <ul style={{ paddingLeft: '18px', margin: 0, color: '#bbb' }}>
+                            <li><strong>Add:</strong> Click "Add" in the panel or click the map to place a candidate marker.</li>
+                            <li><strong>Compare:</strong> Toggle candidates in the list to view their coverage stats.</li>
+                            <li><strong>Convert:</strong> Promote a candidate to a permanent primary node.</li>
                         </ul>
                     </div>
                 )}

@@ -13,17 +13,17 @@ meshRF is designed for **mission-critical availability**. It operates with **zer
 - **Server-Side Physics**: All calculations now run on a dedicated Python backend using **NumPy** and **SciPy** for maximum accuracy.
 - **Advanced Models**:
   - **ITM (Longley-Rice)**: The gold standard for irregular terrain modeling (via Bullington Diffraction).
-  - **Okumura-Hata**: Ported to backend for consistent statistical urban modeling.
+  - **Okumura-Hata**: Standard empirical model for **Urban, Suburban, and Open** environments (150-1500 MHz). Ignores specific terrain features in favor of statistical clutter (buildings/trees).
   - **Free Space**: Optimistic baseline comparison.
 - **Asymmetric Links**: Configure unique hardware (power, gain, height) for Node A and Node B independently.
 - **Dynamic Fresnel visualization**: Real-time 2D profiles showing LOS and Fresnel zone clearance using backend-generated geometry.
 
 ### 2. 📍 Advanced Site Surveying
 
-- **Parallel Location Optimization**: Rapidly scan bounding boxes for optimal node placement using high-concurrency grid searches.
+- **Multi-Site Management** (In Test): Dedicated manager for maintaining and comparing lists of candidate sites (`manual` mode).
+- **Grid-Based Location Optimization**: Scan user-defined bounding boxes to identify optimal node placement based on elevation, prominence, and Fresnel clearance.
 - **RF Coverage Simulator** (In Test): Optimized Wasm-powered ITM propagation modeling for wide-area coverage visualization.
 - **Viewshed Analysis**: Desktop-grade viewshed calculations with "Shadow Mode" visualization (Green/Purple) for precise LOS checking.
-- **Geolocation**: "Locate Me" feature for instant map orientation during field surveys.
 
 ### 3. ⚡ Batch Operations & reporting
 
@@ -35,6 +35,7 @@ meshRF is designed for **mission-critical availability**. It operates with **zer
 
 Detailed guides for specific tools:
 
+- [📖 site-analyzer.md](./Documentation/site-analyzer.md) - **Site Finder** & **Multi-Site** tools.
 - [📖 viewshed.md](./Documentation/viewshed.md) - Optical LOS analysis.
 - [📖 rf-simulator.md](./Documentation/rf-simulator.md) - Coverage heatmap simulation.
 - [📖 interactions.md](./Documentation/interactions.md) - Tool workflows and "Locate Me".
@@ -112,6 +113,7 @@ You can customize the application behavior by setting environment variables in `
 
 - **Frontend**: React + Leaflet + Vite.
 - **RF Engine**: FastAPI Python service. Now the central **Physics Authority**, handling all propagation models (ITM, Hata, FSPL) and terrain profiling.
+- **RF Worker**: Celery-based background worker for long-running tasks like Viewshed Analysis and Site Optimization.
 - **OpenTopoData**: Self-hosted elevation API providing geodetic data without external requests or rate limits.
 - **Redis**: High-speed caching layer for terrain and analysis results.
 

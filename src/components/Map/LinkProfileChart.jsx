@@ -47,7 +47,7 @@ const LinkProfileChart = ({ profileWithStats, width = 200, height = 100, units =
     const endLabel = (endElev * heightFactor).toFixed(0);
 
     // Padding
-    const p = 10;
+    const p = 12;
     const w = width - p * 2;
     const h = height - p * 2;
 
@@ -83,7 +83,7 @@ const LinkProfileChart = ({ profileWithStats, width = 200, height = 100, units =
     });
 
     return (
-        <div style={{ marginTop: '10px', background: '#0000', border: '1px solid #333', borderRadius: '4px' }}>
+        <div style={{ marginTop: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(0, 242, 255, 0.2)', borderRadius: '8px', overflow: 'hidden' }}>
             <svg width={width} height={height}>
                 {/* Terrain (Effective - Includes Clutter) */}
                 <path d={terrainPath} fill="#5d4037" stroke="none" opacity="0.8" />
@@ -134,11 +134,11 @@ const LinkProfileChart = ({ profileWithStats, width = 200, height = 100, units =
                 <text 
                     x={width - p} 
                     y={p + 10} 
-                    fill="#ff0000" 
+                    fill="#ff4444" 
                     fontWeight="bold"
                     fontSize="11" 
                     textAnchor="end" 
-                    style={{ textShadow: '0 0 3px #000' }}
+                    style={{ textShadow: '0 0 5px rgba(255,0,0,0.3)' }}
                 >
                     {endLabel}{heightUnit}
                 </text>

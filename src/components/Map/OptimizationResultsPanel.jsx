@@ -28,7 +28,7 @@ const OptimizationResultsPanel = ({ results, onClose, onCenter, onReset, onRecal
         padding: '16px',
         paddingBottom: isMobile ? 'calc(32px + env(safe-area-inset-bottom))' : '16px',
         color: '#eee',
-        zIndex: 1000, 
+        zIndex: 2500, 
         boxShadow: isMobile ? '0 -8px 32px rgba(0,0,0,0.8)' : '0 8px 32px rgba(0,0,0,0.6)',
         display: 'flex',
         flexDirection: 'column',
@@ -70,12 +70,12 @@ const OptimizationResultsPanel = ({ results, onClose, onCenter, onReset, onRecal
                         Site Survey Guide
                     </div>
                     <div style={{ color: '#ccc', marginBottom: '16px' }}>
-                        This tool analyzes the selected region to identify peaks and high ground optimal for wireless deployments.
+                        This tool identifies high-ground locations that maximize RF coverage potential based on the selected terrain and weights.
                     </div>
                     <ul style={{ paddingLeft: '20px', margin: '0 0 20px 0', color: '#bbb', flexGrow: 1 }}>
-                        <li style={{ marginBottom: '10px' }}><strong>Rank:</strong> Spots are ordered from highest to lowest elevation.</li>
-                        <li style={{ marginBottom: '10px' }}><strong>AMSL:</strong> Elevation is shown in meters Above Mean Sea Level.</li>
-                        <li style={{ marginBottom: '10px' }}><strong>Adjust:</strong> Drag the cyan corners on the map to re-run the scan on a new area.</li>
+                        <li style={{ marginBottom: '10px' }}><strong>Advanced Scoring:</strong> Sites are ranked using a composite score of elevation, prominence, and Fresnel clearance.</li>
+                        <li style={{ marginBottom: '10px' }}><strong>AMSL:</strong> Elevation is shown in meters Above Mean Sea Level (Terrain Height).</li>
+                        <li style={{ marginBottom: '10px' }}><strong>Interactive Scan:</strong> Drag the cyan corners on the map to re-run the scan on a new area instantly.</li>
                     </ul>
                     <button 
                         onClick={() => setShowHelp(false)}

@@ -21,6 +21,12 @@ const useSimulationStore = create((set, get) => ({
   updateNode: (id, updates) => set((state) => ({
     nodes: state.nodes.map((n) => n.id === id ? { ...n, ...updates } : n)
   })),
+
+  setNodes: (nodes) => set({ 
+    nodes: nodes.map(n => ({ ...n, id: n.id || crypto.randomUUID() })),
+    results: null,
+    compositeOverlay: null
+  }),
   
   clearNodes: () => set({ nodes: [] }),
   

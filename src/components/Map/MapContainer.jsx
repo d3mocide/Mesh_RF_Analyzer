@@ -290,6 +290,9 @@ const MapComponent = () => {
 
   const handleOptimizationStateUpdate = React.useCallback((state) => {
     setOptimizeState(state);
+    if (state.showResults !== undefined) {
+      setShowAnalysisResults(state.showResults);
+    }
   }, []);
 
   const handleNodeSelect = (node, isBatch = false) => {
@@ -656,9 +659,14 @@ const MapComponent = () => {
         {toolMode === 'optimize' && siteAnalysisMode === 'manual' && (
             <MultiSiteClickHandler 
                 onLocationSelect={(loc) => {
-                    // We'll pass this via a callback prop to the panel, or use a shared state
-                    // For now, let's lift a state "lastClickedLocation" in MapContainer and pass it down
                     setLastClickedLocation(loc);
+                    // Proactive addition: Add node to store directly on click
+                    useSimulationStore.getState().addNode({
+                        lat: loc.lat,
+                        lon: loc.lng,
+                        height: 10,
+                        name: `Node ${simNodes.length + 1}`
+                    });
                 }} 
             />
         )}
@@ -820,6 +828,7 @@ const MapComponent = () => {
 
       <SiteAnalysisPanel 
           active={toolMode === 'optimize'}
+          isResultsVisible={showAnalysisResults}
           mode={siteAnalysisMode}
           setMode={setSiteAnalysisMode}
           weights={siteSelectionWeights}
@@ -833,22 +842,24 @@ const MapComponent = () => {
         setToolMode={setToolMode}
         resetToolState={resetToolState}
       />
-      <GuidanceOverlays
-        toolMode={toolMode}
-        nodes={nodes}
-        optimizeState={optimizeState}
-        isMobile={isMobile}
-        viewshedObserver={viewshedObserver}
-        rfObserver={rfObserver}
-        linkHelp={linkHelp}
-        setLinkHelp={setLinkHelp}
-        elevationHelp={elevationHelp}
-        setElevationHelp={setElevationHelp}
-        viewshedHelp={viewshedHelp}
-        setViewshedHelp={setViewshedHelp}
-        rfHelp={rfHelp}
-        setRFHelp={setRFHelp}
-      />
+        <GuidanceOverlays 
+          toolMode={toolMode}
+          siteAnalysisMode={siteAnalysisMode}
+          nodes={nodes}
+          optimizeState={optimizeState}
+          isResultsVisible={showAnalysisResults}
+          isMobile={isMobile}
+          viewshedObserver={viewshedObserver}
+          rfObserver={rfObserver}
+          linkHelp={linkHelp}
+          setLinkHelp={setLinkHelp}
+          elevationHelp={elevationHelp}
+          setElevationHelp={setElevationHelp}
+          viewshedHelp={viewshedHelp}
+          setViewshedHelp={setViewshedHelp}
+          rfHelp={rfHelp}
+          setRFHelp={setRFHelp}
+        />
 
       {/* Clear Link Button - Shows when link nodes exist */}
       {nodes.length > 0 && (

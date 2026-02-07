@@ -31,14 +31,7 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
             h2
         );
     }
-
-    // Recalculate margin with diffraction loss if applicable
-    // Recalculate margin with diffraction loss if applicable
     let margin = budget ? budget.margin : 0;
-    // We do NOT subtract diffractionLoss from margin here anymore,
-    // because the backend model (ITM/Hata) likely already accounts for it.
-    // For FSPL, we keep it optimistic (as requested).
-    // The "Obstruction Loss" box provides the warning.
     
     // WISP Ratings
     const quality = linkStats.linkQuality || 'Obstructed (-)';
@@ -82,7 +75,7 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
     const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
     const [panelSize, setPanelSize] = React.useState({ 
         width: isMobile ? window.innerWidth : 400, 
-        height: isMobile ? 480 : 620 
+        height: isMobile ? 480 : 650 
     });
 
     React.useEffect(() => {
@@ -107,13 +100,13 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
     if (nodes.length !== 2) return null;
 
     // Calculate Dimensions directly (Derived State)
-    let layoutOffset = 360; // Adjusted for 2-row controls + Legend
+    let layoutOffset = 380; // Recalibrated to eliminate dead space
     if (diffractionLoss > 0) {
-        layoutOffset += 50; // Compensate for Obstruction Loss warning box
+        layoutOffset += 70; // Extra room for obstruction box
     }
     
     const dimensions = {
-        width: Math.max(260, panelSize.width - 32),
+        width: Math.max(270, panelSize.width - 48),
         height: Math.max(100, panelSize.height - layoutOffset)
     };
 
@@ -140,8 +133,8 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
             const newHeight = prev.height + dy;
 
             return {
-                width: Math.max(300, newWidth),
-                height: Math.max(550, newHeight)
+                width: Math.max(400, newWidth),
+                height: Math.max(500, newHeight)
             };
         });
     };
@@ -164,18 +157,18 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
             height: isMobile ? 'auto' : `${panelSize.height}px`,
             maxHeight: isMobile ? (isMinimized ? '72px' : '85dvh') : 'none',
             background: 'rgba(10, 10, 15, 0.98)',
-            backdropFilter: 'blur(15px)',
-            border: isMobile ? 'none' : '1px solid #444',
-            borderTop: isMobile ? '1px solid #555' : '1px solid #444',
-            borderRadius: isMobile ? '20px 20px 0 0' : '8px',
-            padding: '16px',
-            paddingBottom: isMobile ? 'calc(16px + env(safe-area-inset-bottom))' : '16px',
+            backdropFilter: 'blur(16px)',
+            border: isMobile ? 'none' : '1px solid #00f2ff33',
+            borderTop: isMobile ? '1px solid #00f2ff55' : '1px solid #00f2ff33',
+            borderRadius: isMobile ? '20px 20px 0 0' : '12px',
+            padding: '24px',
+            paddingBottom: isMobile ? 'calc(24px + env(safe-area-inset-bottom))' : '24px',
             color: '#eee',
             zIndex: 1000, 
-            boxShadow: '0 -8px 32px rgba(0,0,0,0.8)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
             display: 'flex',
             flexDirection: 'column',
-            overflowY: isMobile ? 'auto' : 'hidden',
+            overflowY: 'auto',
             overflowX: 'hidden',
             transition: isResizing ? 'none' : 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
         }}>
@@ -214,28 +207,36 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
                         The engine uses physical models to predict signal strength across the terrain.
                     </div>
                     <div style={{ flexGrow: 1 }}>
-                        <div style={{ marginBottom: '12px', lineHeight: '1.4' }}>
-                            <strong style={{ color: '#00f2ff' }}>Okumura-Hata:</strong> Best for urban/suburban areas. It considers clutter and frequency to estimate path loss.
+                        <div style={{ marginBottom: '16px', fontSize: '0.9em' }}>
+                            <div style={{ marginBottom: '8px' }}>
+                                <strong style={{ color: '#00f2ff' }}>FSPL:</strong> Idealized "Line of Sight" calculation. Best for very short distances or space-to-earth links.
+                            </div>
+                            <div style={{ marginBottom: '8px' }}>
+                                <strong style={{ color: '#00f2ff' }}>Okumura-Hata:</strong> Statistical model based on city measurements. Accounts for clutter and building density.
+                            </div>
+                            <div style={{ marginBottom: '12px' }}>
+                                <strong style={{ color: '#00f2ff' }}>ITM (Longley-Rice):</strong> High-precision terrain model. Accounts for diffraction over hills and earth curvature.
+                            </div>
                         </div>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', color: '#bbb' }}>
                             <thead>
                                 <tr style={{ borderBottom: '1px solid #333', textAlign: 'left' }}>
                                     <th style={{ padding: '8px 4px' }}>Model</th>
-                                    <th style={{ padding: '8px 4px' }}>Best For</th>
+                                    <th style={{ padding: '8px 4px' }}>Recommended Use Case</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr style={{ borderBottom: '1px solid #222' }}>
-                                    <td style={{ padding: '8px 4px' }}>FSPL</td>
-                                    <td style={{ padding: '8px 4px' }}>Ideal LOS (No ground)</td>
+                                    <td style={{ padding: '8px 4px', fontWeight: 'bold' }}>FSPL</td>
+                                    <td style={{ padding: '8px 4px' }}>Bench tests & Space links</td>
                                 </tr>
                                 <tr style={{ borderBottom: '1px solid #222' }}>
-                                    <td style={{ padding: '8px 4px', fontWeight: 'bold' }}>Hata</td>
-                                    <td style={{ padding: '8px 4px' }}>City/Suburban Mesh</td>
+                                    <td style={{ padding: '8px 4px', fontWeight: 'bold', color: '#fff' }}>Hata</td>
+                                    <td style={{ padding: '8px 4px' }}>City-wide Mesh Planning</td>
                                 </tr>
                                 <tr>
-                                    <td style={{ padding: '8px 4px', color: '#00ff41' }}>ITM</td>
-                                    <td style={{ padding: '8px 4px' }}>Long Distance / Hills</td>
+                                    <td style={{ padding: '8px 4px', fontWeight: 'bold', color: '#00ff41' }}>ITM</td>
+                                    <td style={{ padding: '8px 4px' }}>Long-range Rural / Hills</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -349,7 +350,7 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
                 }}
             >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <h3 style={{ margin: 0, fontSize: '1.1em', fontWeight: 600 }}>Link Analysis</h3>
+                    <h3 style={{ margin: 0, fontSize: '1.2em', fontWeight: 600, color: '#00f2ff' }}>Link Analysis</h3>
                     {isMobile && (
                         <span style={{ fontSize: '0.8em', color: '#666', transform: isMinimized ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 0.3s' }}>
                             ▼
@@ -370,7 +371,7 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
 
             {/* Propagation Configuration */}
             {propagationSettings && (
-                <div style={{ mb: '12px', padding: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', marginBottom: '12px', position: 'relative' }}>
+                <div style={{ mb: '12px', padding: '12px', background: 'rgba(0, 242, 255, 0.03)', border: '1px solid rgba(0, 242, 255, 0.15)', borderRadius: '8px', marginBottom: '16px', position: 'relative' }}>
                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                          {/* Row 1: Model & Help */}
                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -404,13 +405,15 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
                                     borderRadius: '4px',
                                     gap: '4px'
                                 }} title="Click for Model Comparison Guide">
-                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <line x1="12" y1="16" x2="12" y2="12"></line>
-                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                                 </svg>
-                                 <span style={{ fontSize: '0.8em' }}>{showModelHelp ? 'Hide Info' : (propagationSettings.model === 'itm' ? 'Longley-Rice Info' : (propagationSettings.model === 'hata' ? 'Hata Info' : 'Model Info'))}</span>
-                             </div>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                                     <circle cx="12" cy="12" r="10"></circle>
+                                     <line x1="12" y1="16" x2="12" y2="12"></line>
+                                     <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                  </svg>
+                                  <span style={{ fontSize: '0.8em', whiteSpace: 'nowrap' }}>
+                                    {showModelHelp ? 'Hide Info' : (propagationSettings.model === 'itm' ? 'ITM' : (propagationSettings.model === 'hata' ? 'Hata' : 'Model'))} Info
+                                  </span>
+                              </div>
                          </div>
 
                          {/* Row 2: Env Selector */}
@@ -439,20 +442,20 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
             {/* Stats Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.9em', marginBottom: '16px', flexShrink: 0 }}>
                 <div>
-                    <div style={{ color: '#888', fontSize: '0.85em' }}>Distance</div>
-                    <div style={{ fontSize: '1.2em', fontWeight: 500 }}>{distDisplay}</div>
+                    <div style={{ color: '#888', fontSize: '0.85em', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Distance</div>
+                    <div style={{ fontSize: '1.2em', fontWeight: 600, color: '#fff' }}>{distDisplay}</div>
                 </div>
                 <div>
-                    <div style={{ color: '#888', fontSize: '0.85em' }}>Margin</div>
-                    <div style={{ fontSize: '1.2em', fontWeight: 500, color: statusColor }}>{margin} dB</div>
+                    <div style={{ color: '#888', fontSize: '0.85em', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Margin</div>
+                    <div style={{ fontSize: '1.2em', fontWeight: 600, color: statusColor }}>{margin} dB</div>
                 </div>
                 <div>
-                    <div style={{ color: '#888', fontSize: '0.85em' }}>RSSI</div>
-                    <div style={{ fontSize: '1.1em' }}>{budget ? budget.rssi : '--'} dBm</div>
+                    <div style={{ color: '#888', fontSize: '0.85em', textTransform: 'uppercase', letterSpacing: '0.5px' }}>RSSI</div>
+                    <div style={{ fontSize: '1.1em', color: '#00f2ff', fontWeight: 600 }}>{budget ? budget.rssi : '--'} dBm</div>
                 </div>
                 <div>
-                    <div style={{ color: '#888', fontSize: '0.85em' }}>First Fresnel</div>
-                    <div style={{ fontSize: '1.1em' }}>{clearanceDisplay}</div>
+                    <div style={{ color: '#888', fontSize: '0.85em', textTransform: 'uppercase', letterSpacing: '0.5px' }}>First Fresnel</div>
+                    <div style={{ fontSize: '1.1em', color: '#fff', fontWeight: 600 }}>{clearanceDisplay}</div>
                 </div>
                 {diffractionLoss > 0 && (
                      <div style={{ gridColumn: 'span 2', marginTop: '4px', padding: '4px', background: 'rgba(255, 0, 0, 0.2)', borderRadius: '4px' }}>
@@ -470,7 +473,7 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
                         Loading Elevation Data...
                     </div>
                 ) : (
-                    <div style={{flexGrow: 1, minHeight: '100px'}}>
+                    <div style={{flexGrow: 1, minHeight: '160px'}}>
                         <LinkProfileChart 
                             profileWithStats={linkStats.profileWithStats} 
                             width={dimensions.width}
@@ -484,7 +487,7 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
             </div>
 
             {/* Legend / Info */}
-            <div style={{ marginTop: '12px', display: 'flex', gap: '12px', fontSize: '0.75em', color: '#666', flexShrink: 0, marginLeft: '20px' }}> {/* Left margin to avoid handle */}
+            <div style={{ marginTop: 'auto', paddingTop: '10px', display: 'flex', gap: '10px', fontSize: '0.75em', color: '#666', borderTop: '1px solid rgba(255,255,255,0.05)', flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#00ff41' }}></div>
                     <span>LOS</span>

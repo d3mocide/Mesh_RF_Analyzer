@@ -10,7 +10,8 @@ const SiteAnalysisPanel = ({
 
     mode, 
     setMode,
-    selectedLocation 
+    selectedLocation,
+    isResultsVisible
 }) => {
     const { isMobile } = useRF();
 
@@ -19,11 +20,13 @@ const SiteAnalysisPanel = ({
     const styles = {
         panel: {
             position: 'absolute',
-            top: isMobile ? 'auto' : 'auto', 
-            bottom: isMobile ? '0' : '40px',
-            left: isMobile ? '0' : '20px',
-            right: isMobile ? '0' : 'auto',
-            transform: 'none',
+            top: isMobile ? 'auto' : '20px', 
+            bottom: isMobile ? '0' : 'auto',
+            left: isMobile ? '0' : 'auto',
+            right: isMobile ? '0' : '20px',
+            transform: isResultsVisible ? 'translateY(-10px)' : 'none',
+            opacity: isResultsVisible ? 0 : 1,
+            pointerEvents: isResultsVisible ? 'none' : 'auto',
             width: isMobile ? '100%' : '420px', // widened from 380px
             maxHeight: isMobile ? '80vh' : 'calc(100vh - 160px)',
             borderRadius: isMobile ? '16px 16px 0 0' : '12px',
@@ -37,6 +40,7 @@ const SiteAnalysisPanel = ({
             overflow: 'hidden',
             fontFamily: 'system-ui, sans-serif',
             color: '#eee',
+            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
             animation: 'slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
         },
         tabBar: {

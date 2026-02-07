@@ -37,20 +37,22 @@ const OptimizationLayer = ({ active, setActive, onStateUpdate, weights }) => {
     const syncState = (forceState = null) => {
         if (!onStateUpdate) return;
         
-        const stateToSync = forceState || { startPoint, loading, ghostNodes };
+        const stateToSync = forceState || { startPoint, loading, ghostNodes, showResults };
         const prev = lastSyncRef.current;
         
         // Only sync if essentials changed
         const startChanged = stateToSync.startPoint !== prev.startPoint;
         const loadingChanged = stateToSync.loading !== prev.loading;
         const ghostCountChanged = (stateToSync.ghostNodes?.length || 0) !== prev.ghostCount;
+        const resultsVisibleChanged = stateToSync.showResults !== prev.showResults;
 
-        if (startChanged || loadingChanged || ghostCountChanged) {
+        if (startChanged || loadingChanged || ghostCountChanged || resultsVisibleChanged) {
             onStateUpdate(stateToSync);
             lastSyncRef.current = {
                 startPoint: stateToSync.startPoint,
                 loading: stateToSync.loading,
-                ghostCount: stateToSync.ghostNodes?.length || 0
+                ghostCount: stateToSync.ghostNodes?.length || 0,
+                showResults: stateToSync.showResults
             };
         }
     };
@@ -70,6 +72,7 @@ const OptimizationLayer = ({ active, setActive, onStateUpdate, weights }) => {
                 setEndPoint(e.latlng);
                 setLocked(true);
                 handleOptimize(e.latlng);
+                onStateUpdate?.({ startPoint, loading: true, ghostNodes: [], showResults: false }); // Sync loading start
             }
         },
         mousemove(e) {
@@ -108,7 +111,7 @@ const OptimizationLayer = ({ active, setActive, onStateUpdate, weights }) => {
         } finally {
             setLoading(false);
             // Manual sync with correct data
-            onStateUpdate?.({ startPoint, loading: false, ghostNodes: finalGhostNodes }); 
+            onStateUpdate?.({ startPoint, loading: false, ghostNodes: finalGhostNodes, showResults: true }); 
         }
     };
     
@@ -121,7 +124,7 @@ const OptimizationLayer = ({ active, setActive, onStateUpdate, weights }) => {
         setLocked(false);
         setNotification(null);
         setShowResults(false);
-        onStateUpdate?.({ startPoint: null, loading: false, ghostNodes: [] }); // Manual sync
+        onStateUpdate?.({ startPoint: null, loading: false, ghostNodes: [], showResults: false }); // Manual sync
     }
 
     // Reset when deactivated specificially
@@ -130,6 +133,11 @@ const OptimizationLayer = ({ active, setActive, onStateUpdate, weights }) => {
             reset();
         }
     }, [active]);
+
+    // Sync results visibility state back to parent
+    useEffect(() => {
+        syncState();
+    }, [showResults]);
 
     // Internal auto-close for transient notifications
     useEffect(() => {

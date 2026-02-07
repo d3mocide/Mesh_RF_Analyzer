@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0] - 2026-02-07
+
+### Added
+
+- **CSV Bulk Import**: Added ability to import lists of sites via CSV templates in the Multi-Site tool (`NodeManager`).
+- **Global Custom Scrollbar**: Unified the application with a 4px neon-cyan cyberpunk scrollbar consistent across all panels.
+- **Propagation Model Guide**: Added an interactive guide in the Link Analysis tool with detailed descriptions of FSPL, Hata, and ITM models.
+
+### Changed
+
+- **Link Analysis UI/UX Overhaul**:
+  - Implemented full **Glassmorphism** (`rgba(10, 10, 15, 0.98)` with `16px` blur) and standardized neon borders (`1px solid #00f2ff33`).
+  - Redesigned the **Terrain & Path Profile** chart with improved landscape resolution and a 700px default panel height.
+  - Optimized stats grid with high-resolution indicators, uppercase labels, and neon highlights.
+- **UI Ergonomics**:
+  - Added specialized padding to sidebar and node lists for improved scrollbar visibility and "breathing room".
+  - Symmetric horizontal padding (24px) applied to panels to eliminate content clipping.
+
+### Fixed
+
+- **Label Clipping**: Fixed issues where **RX Node Elevation** and **Legend** labels were cut off in the Link Profile chart.
+- **Text Spacing**: Resolved "squished" text issues in the model selection row by optimizing flex-basis and text-overflow.
+- **Layout Efficiency**: Recalibrated offsets to eliminate "dead space" below charts, restoring vertical balance to the analysis suite.
+
 ## [1.9.1] - 2026-02-06
 
 ### Added

@@ -1,10 +1,73 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useRF } from '../../../context/RFContext';
 import useSimulationStore from '../../../store/useSimulationStore';
+import { Download, Upload, FileSpreadsheet } from 'lucide-react';
 
 const NodeManager = ({ selectedLocation }) => {
-    const { nodes, addNode, removeNode, startScan, isScanning, scanProgress, results, compositeOverlay } = useSimulationStore();
+    const { units } = useRF();
+    const { nodes: simNodes, addNode, removeNode, startScan, isScanning, scanProgress, results: simResults, compositeOverlay, setNodes } = useSimulationStore();
     const [manualLat, setManualLat] = useState('');
     const [manualLon, setManualLon] = useState('');
+    const fileInputRef = useRef(null);
+
+    const handleCSVImport = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const text = event.target.result;
+            const lines = text.split('\n');
+            const headers = lines[0].toLowerCase().split(',').map(h => h.trim());
+            
+            const importedNodes = [];
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                
+                const values = line.split(',').map(v => v.trim());
+                const node = {};
+                
+                headers.forEach((header, idx) => {
+                    const val = values[idx];
+                    if (header === 'lat') node.lat = parseFloat(val);
+                    else if (header === 'lon' || header === 'lng') node.lon = parseFloat(val);
+                    else if (header === 'name') node.name = val;
+                    else if (header === 'antenna_height') node.height = parseFloat(val);
+                    else if (header === 'tx_power') node.txPower = parseFloat(val);
+                });
+
+                if (!isNaN(node.lat) && !isNaN(node.lon)) {
+                    importedNodes.push({
+                        lat: node.lat,
+                        lon: node.lon,
+                        height: node.height || 10,
+                        name: node.name || `Imported Site ${i}`,
+                        txPower: node.txPower || 20
+                    });
+                }
+            }
+
+            if (importedNodes.length > 0) {
+                setNodes(importedNodes);
+            }
+        };
+        reader.readAsText(file);
+        // Clear input so same file can be re-imported
+        e.target.value = null;
+    };
+
+    const downloadTemplate = () => {
+        const headers = 'name,lat,lon,antenna_height,tx_power\n';
+        const example = 'Site A,45.5152,-122.6784,15,20\nSite B,45.5230,-122.6670,10,20';
+        const blob = new Blob([headers + example], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'mesh-site-template.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+    };
     const [isGreedy, setIsGreedy] = useState(false);
     const [targetCount, setTargetCount] = useState(3);
 
@@ -21,7 +84,7 @@ const NodeManager = ({ selectedLocation }) => {
             lat: parseFloat(manualLat), 
             lon: parseFloat(manualLon), 
             height: 10,
-            name: `Node ${nodes.length + 1}`
+            name: `Node ${simNodes.length + 1}`
         });
         setManualLat('');
         setManualLon('');
@@ -85,7 +148,8 @@ const NodeManager = ({ selectedLocation }) => {
             gap: '8px',
             marginBottom: '16px',
             maxHeight: '180px',
-            overflowY: 'auto'
+            overflowY: 'auto',
+            paddingRight: '8px' // Space for scrollbar
         },
         nodeItem: {
             display: 'flex',
@@ -137,8 +201,83 @@ const NodeManager = ({ selectedLocation }) => {
             border: '1px solid rgba(0, 242, 255, 0.15)',
             borderRadius: '8px',
             padding: '12px',
-            marginBottom: '20px'
-        }
+            marginBottom: '12px'
+        },
+        bulkHeader: {
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '10px',
+            padding: '0 4px'
+        },
+        bulkButton: {
+            flex: 1,
+            padding: '8px',
+            background: 'rgba(0, 242, 255, 0.05)',
+            border: '1px solid rgba(0, 242, 255, 0.2)',
+            borderRadius: '6px',
+            color: '#00f2ff',
+            fontSize: '0.85em',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            transition: 'all 0.2s ease'
+        },
+        templateLink: {
+            color: '#888',
+            fontSize: '0.75em',
+            textDecoration: 'underline',
+            cursor: 'pointer',
+            marginLeft: '10px'
+        },
+        styleSheet: `
+            /* Theme number input spinners */
+            input[type=number]::-webkit-inner-spin-button,
+            input[type=number]::-webkit-outer-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+            }
+            
+            input[type=number] {
+                -moz-appearance: textfield;
+                position: relative;
+            }
+
+            /* Custom Arrows Replacement */
+            .input-with-arrows {
+                position: relative;
+                display: flex;
+                align-items: center;
+            }
+
+            .custom-arrows {
+                position: absolute;
+                right: 5px;
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+                pointer-events: none;
+                opacity: 0.6;
+            }
+
+            .arrow-up {
+                width: 0; 
+                height: 0; 
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-bottom: 5px solid #00f2ff;
+            }
+
+            .arrow-down {
+                width: 0; 
+                height: 0; 
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-top: 5px solid #00f2ff;
+            }
+        `
     };
 
     return (
@@ -147,20 +286,32 @@ const NodeManager = ({ selectedLocation }) => {
             
             {/* Input Form */}
             <div style={styles.inputGroup}>
-                <input 
-                    type="number" 
-                    placeholder="Lat" 
-                    value={manualLat}
-                    onChange={(e) => setManualLat(e.target.value)}
-                    style={styles.input}
-                />
-                <input 
-                    type="number" 
-                    placeholder="Lon" 
-                    value={manualLon}
-                    onChange={(e) => setManualLon(e.target.value)}
-                    style={styles.input}
-                />
+                <div className="input-with-arrows" style={{ width: '33%' }}>
+                    <input 
+                        type="number" 
+                        placeholder="Lat" 
+                        value={manualLat}
+                        onChange={(e) => setManualLat(e.target.value)}
+                        style={{ ...styles.input, width: '100%' }}
+                    />
+                    <div className="custom-arrows">
+                        <div className="arrow-up"></div>
+                        <div className="arrow-down"></div>
+                    </div>
+                </div>
+                <div className="input-with-arrows" style={{ width: '33%' }}>
+                    <input 
+                        type="number" 
+                        placeholder="Lon" 
+                        value={manualLon}
+                        onChange={(e) => setManualLon(e.target.value)}
+                        style={{ ...styles.input, width: '100%' }}
+                    />
+                    <div className="custom-arrows">
+                        <div className="arrow-up"></div>
+                        <div className="arrow-down"></div>
+                    </div>
+                </div>
                 <button 
                     onClick={handleAdd}
                     style={styles.addButton}
@@ -169,15 +320,49 @@ const NodeManager = ({ selectedLocation }) => {
                 </button>
             </div>
 
+            {/* Bulk Import Section */}
+            <div style={{ padding: '0 12px', marginBottom: '20px' }}>
+                <div style={styles.bulkHeader}>
+                    <button 
+                        onClick={() => fileInputRef.current?.click()}
+                        style={styles.bulkButton}
+                        onMouseOver={e => {
+                            e.currentTarget.style.background = 'rgba(0, 242, 255, 0.15)';
+                            e.currentTarget.style.borderColor = 'rgba(0, 242, 255, 0.4)';
+                        }}
+                        onMouseOut={e => {
+                            e.currentTarget.style.background = 'rgba(0, 242, 255, 0.05)';
+                            e.currentTarget.style.borderColor = 'rgba(0, 242, 255, 0.2)';
+                        }}
+                    >
+                        <Upload size={14} />
+                        Bulk Import (CSV)
+                    </button>
+                    <div 
+                        onClick={downloadTemplate}
+                        style={styles.templateLink}
+                    >
+                        Get Template
+                    </div>
+                </div>
+                <input 
+                    type="file" 
+                    ref={fileInputRef}
+                    style={{ display: 'none' }}
+                    accept=".csv"
+                    onChange={handleCSVImport}
+                />
+            </div>
+
             {/* Node List */}
-            <div style={styles.nodeList}>
-                {nodes.length === 0 && (
+            <div style={styles.nodeList} className="node-list-scroll">
+                {simNodes.length === 0 && (
                     <div style={{textAlign: 'center', color: '#555', padding: '16px', border: '1px dashed #333', borderRadius: '4px', fontSize: '0.85em'}}>
                         No candidate points added
                     </div>
                 )}
                 
-                {nodes.map((node) => (
+                {simNodes.map((node) => (
                     <div key={node.id} style={styles.nodeItem}>
                         <div>
                             <div style={{fontWeight: '600', fontSize: '0.8rem', color: '#fff'}}>{node.name}</div>
@@ -209,7 +394,7 @@ const NodeManager = ({ selectedLocation }) => {
                         </div>
                         <input 
                             type="range" 
-                            min="1" max={Math.max(1, nodes.length)} step="1"
+                            min="1" max={Math.max(1, simNodes.length)} step="1"
                             value={targetCount}
                             onChange={(e) => setTargetCount(parseInt(e.target.value))}
                             onMouseDown={(e) => e.stopPropagation()}
@@ -234,19 +419,20 @@ const NodeManager = ({ selectedLocation }) => {
             ) : (
                 <button 
                     onClick={handleRunScan}
-                    disabled={nodes.length < (isGreedy ? 1 : 2)}
+                    disabled={simNodes.length < (isGreedy ? 1 : 2)}
                     style={{
                         ...styles.actionButton,
-                        backgroundColor: (nodes.length < (isGreedy ? 1 : 2)) ? 'rgba(255,255,255,0.05)' : 'rgba(0, 242, 255, 0.15)',
-                        border: (nodes.length < (isGreedy ? 1 : 2)) ? '1px solid #333' : '1px solid #00f2ff',
-                        color: (nodes.length < (isGreedy ? 1 : 2)) ? '#555' : '#00f2ff',
-                        cursor: (nodes.length < (isGreedy ? 1 : 2)) ? 'not-allowed' : 'pointer',
-                        boxShadow: (nodes.length < (isGreedy ? 1 : 2)) ? 'none' : '0 0 15px rgba(0, 242, 255, 0.2)'
+                        backgroundColor: (simNodes.length < (isGreedy ? 1 : 2)) ? 'rgba(255,255,255,0.05)' : 'rgba(0, 242, 255, 0.15)',
+                        border: (simNodes.length < (isGreedy ? 1 : 2)) ? '1px solid #333' : '1px solid #00f2ff',
+                        color: (simNodes.length < (isGreedy ? 1 : 2)) ? '#555' : '#00f2ff',
+                        cursor: (simNodes.length < (isGreedy ? 1 : 2)) ? 'not-allowed' : 'pointer',
+                        boxShadow: (simNodes.length < (isGreedy ? 1 : 2)) ? 'none' : '0 0 15px rgba(0, 242, 255, 0.2)'
                     }}
                 >
                     Run Site Analysis
                 </button>
             )}
+            <style>{styles.styleSheet}</style>
         </div>
     );
 };

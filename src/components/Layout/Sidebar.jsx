@@ -122,7 +122,7 @@ const Sidebar = () => {
         height: '100dvh',
         paddingTop: isOpen ? 'calc(var(--safe-area-top, 0px) + var(--spacing-md))' : '0px',
         paddingLeft: isOpen ? 'var(--spacing-md)' : '0px',
-        paddingRight: isOpen ? 'var(--spacing-md)' : '0px',
+        paddingRight: isOpen ? 'calc(var(--spacing-md) + 4px)' : '0px', // Extra room for scrollbar
         paddingBottom: isOpen ? 'calc(var(--safe-area-bottom, 0px) + var(--spacing-md))' : '0px',
         display: 'flex',
         flexDirection: 'column',
