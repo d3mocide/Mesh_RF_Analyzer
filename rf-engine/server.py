@@ -39,8 +39,10 @@ class LinkRequest(BaseModel):
     frequency_mhz: float
     tx_height: float
     rx_height: float
-    model: str = "itm" # itm, fspl
+    model: str = "bullington" # bullington, fspl
     environment: str = "suburban"
+    k_factor: float = 1.333
+    clutter_height: float = 0.0
 
 @app.post("/calculate-link")
 def calculate_link_endpoint(req: LinkRequest):
@@ -69,8 +71,11 @@ def calculate_link_endpoint(req: LinkRequest):
         req.frequency_mhz, 
         req.tx_height, 
         req.rx_height,
+        req.rx_height,
         model=req.model,
-        environment=req.environment
+        environment=req.environment,
+        k_factor=req.k_factor,
+        clutter_height=req.clutter_height
     )
     
     # Analyze link with correct signature
@@ -79,7 +84,9 @@ def calculate_link_endpoint(req: LinkRequest):
         dist_m,
         req.frequency_mhz,
         req.tx_height,
-        req.rx_height
+        req.rx_height,
+        k_factor=req.k_factor,
+        clutter_height=req.clutter_height
     )
     
     result['path_loss_db'] = float(path_loss_db)

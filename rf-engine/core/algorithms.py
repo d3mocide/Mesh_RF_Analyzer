@@ -3,7 +3,7 @@ import math
 import heapq
 from rf_physics import haversine_distance, calculate_path_loss
 
-def calculate_viewshed(tile_manager, tx_lat, tx_lon, tx_h, radius_m, resolution_m=30, model='itm'):
+def calculate_viewshed(tile_manager, tx_lat, tx_lon, tx_h, radius_m, resolution_m=30, model='bullington'):
     """
     Calculate viewshed for a single point.
     Returns: (lat_grid, lon_grid, visibility_grid)
@@ -96,7 +96,7 @@ def calculate_viewshed(tile_manager, tx_lat, tx_lon, tx_h, radius_m, resolution_
             
     return grid, lats, lons
 
-def greedy_coverage(tile_manager, candidates, n_select, radius_m=5000, model='itm'):
+def greedy_coverage(tile_manager, candidates, n_select, radius_m=5000, model='bullington'):
     """
     Select N nodes that maximize coverage area.
     candidates: List of NodeConfig objects

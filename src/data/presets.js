@@ -111,3 +111,12 @@ export const ANTENNA_PRESETS = {
     type: 'omni'
   }
 };
+
+export const CABLE_TYPES = {
+  LMR400: { id: 'LMR400', name: 'LMR-400', loss_per_meter: 0.128 }, 
+  RG58:   { id: 'RG58',   name: 'RG-58',   loss_per_meter: 0.500 },  
+  RG8X:   { id: 'RG8X',   name: 'RG-8X',   loss_per_meter: 0.262 }, 
+  LMR240: { id: 'LMR240', name: 'LMR-240', loss_per_meter: 0.249 }, 
+  HELIAX: { id: 'HELIAX', name: '1/2" Heliax', loss_per_meter: 0.038 }, 
+  NONE:   { id: 'NONE',   name: 'None / Direct', loss_per_meter: 0 }
+};

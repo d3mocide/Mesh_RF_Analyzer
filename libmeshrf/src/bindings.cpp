@@ -58,13 +58,17 @@ EMSCRIPTEN_BINDINGS(meshrf_module) {
         float rx_gain_dbi,
         float rx_sensitivity,
         int max_dist,
-        float gsd_meters
+        float gsd_meters,
+        float epsilon,
+        float sigma,
+        int climate
     ) {
         float* elev = reinterpret_cast<float*>(elev_ptr);
         return calculate_rf_coverage(
             elev, width, height, tx_x, tx_y, tx_h, rx_h,
             freq_mhz, tx_power_dbm, tx_gain_dbi, rx_gain_dbi,
-            rx_sensitivity, max_dist, gsd_meters
+            rx_sensitivity, max_dist, gsd_meters,
+            epsilon, sigma, climate
         );
     }));
 

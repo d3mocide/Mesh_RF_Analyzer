@@ -1,5 +1,24 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { RADIO_PRESETS, DEVICE_PRESETS, ANTENNA_PRESETS } from '../data/presets';
+import { RADIO_PRESETS, DEVICE_PRESETS, ANTENNA_PRESETS, CABLE_TYPES } from '../data/presets';
+
+// ITM Environment Constants
+export const GROUND_TYPES = {
+    'Average Ground': { epsilon: 15.0, sigma: 0.005 },
+    'Poor Ground': { epsilon: 4.0, sigma: 0.001 },
+    'Good Ground': { epsilon: 25.0, sigma: 0.02 },
+    'Fresh Water': { epsilon: 81.0, sigma: 0.01 },
+    'Sea Water': { epsilon: 81.0, sigma: 5.0 }
+};
+
+export const CLIMATE_ZONES = {
+    1: 'Equatorial',
+    2: 'Continental Subtropical',
+    3: 'Maritime Subtropical',
+    4: 'Desert',
+    5: 'Continental Temperate',
+    6: 'Maritime Temperate Over Land',
+    7: 'Maritime Temperate Over Sea'
+};
 
 const RFContext = createContext();
 
@@ -30,7 +49,9 @@ export const RFProvider = ({ children }) => {
         antenna: 'DIPOLE',
         txPower: 20,
         antennaHeight: 5,
-        antennaGain: ANTENNA_PRESETS.DIPOLE.gain
+        antennaGain: ANTENNA_PRESETS.DIPOLE.gain,
+        cableType: 'LMR400',
+        cableLength: 0.3048 // 1 ft in meters
     };
 
     const [nodeConfigs, setNodeConfigs] = useState({
@@ -72,6 +93,12 @@ export const RFProvider = ({ children }) => {
 
     const antennaGain = currentConfig.antennaGain;
     const setAntennaGain = (val) => updateConfig('antennaGain', val);
+
+    const selectedCableType = currentConfig.cableType || 'LMR400';
+    const setSelectedCableType = (val) => updateConfig('cableType', val);
+
+    const cableLength = currentConfig.cableLength !== undefined ? currentConfig.cableLength : 1;
+    const setCableLength = (val) => updateConfig('cableLength', val);
     
     // --- END NODE SPECIFIC ---
 
@@ -98,9 +125,14 @@ export const RFProvider = ({ children }) => {
     const [kFactor, setKFactor] = useState(1.33); // Standard Refraction
     const [clutterHeight, setClutterHeight] = useState(0); // Forest/Urban Obstruction (m)
     const [rxHeight, setRxHeight] = useState(2.0); // Receiver Height (m), default 2m (Handheld)
+    const [fadeMargin, setFadeMargin] = useState(10); // Fade Margin (dB), default 10dB
     
     // Signals
     const [recalcTimestamp, setRecalcTimestamp] = useState(0);
+
+    // ITM Environment State
+    const [groundType, setGroundType] = useState('Average Ground');
+    const [climate, setClimate] = useState(5); // Continental Temperate
     const triggerRecalc = () => setRecalcTimestamp(Date.now());
     
     // Radio Params (SHARED LINK PARAMETERS)
@@ -165,7 +197,10 @@ export const RFProvider = ({ children }) => {
     }, [nodeConfigs.A.antenna, nodeConfigs.B.antenna]);
 
     // Derived Values (Active Context)
-    const cableLoss = DEVICE_PRESETS[selectedDevice].loss || 0;
+    const deviceLoss = DEVICE_PRESETS[selectedDevice].loss || 0;
+    const cableConfig = CABLE_TYPES[selectedCableType] || CABLE_TYPES.LMR400;
+    const cableLossVal = deviceLoss + (cableConfig.loss_per_meter * (parseFloat(cableLength) || 0));
+    const cableLoss = parseFloat(cableLossVal.toFixed(2));
     const erp = (txPower + antennaGain - cableLoss).toFixed(1);
 
     const value = {
@@ -181,12 +216,18 @@ export const RFProvider = ({ children }) => {
         txPower, setTxPower,
         antennaHeight, setAntennaHeight,
         antennaGain, setAntennaGain,
+        selectedCableType, setSelectedCableType,
+        cableLength, setCableLength,
         
         // Shared Params
         freq, setFreq,
         bw, setBw,
         sf, setSf,
         cr, setCr,
+        
+        // ITM Environment
+        groundType, setGroundType,
+        climate, setClimate,
         
         // Derived & Globals
         erp, cableLoss,
@@ -195,6 +236,7 @@ export const RFProvider = ({ children }) => {
         kFactor, setKFactor,
         clutterHeight, setClutterHeight,
         rxHeight, setRxHeight,
+        fadeMargin, setFadeMargin,
         
         // Batch
         batchNodes, setBatchNodes,

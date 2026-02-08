@@ -29,7 +29,7 @@ export const optimizeLocation = async (bounds, freq, height, weights) => {
     }
 };
 
-export const calculateLink = async (nodeA, nodeB, freq, h1, h2, model, env) => {
+export const calculateLink = async (nodeA, nodeB, freq, h1, h2, model, env, kFactor, clutterHeight) => {
     try {
         const response = await fetch(`${API_URL}/calculate-link`, {
             method: 'POST',
@@ -42,8 +42,10 @@ export const calculateLink = async (nodeA, nodeB, freq, h1, h2, model, env) => {
                 frequency_mhz: Number(freq),
                 tx_height: Number(h1),
                 rx_height: Number(h2),
-                model: model || 'itm',
-                environment: env || 'suburban'
+                model: model || 'bullington',
+                environment: env || 'suburban',
+                k_factor: Number(kFactor) || 1.333,
+                clutter_height: Number(clutterHeight) || 0
             })
         });
         return await response.json();

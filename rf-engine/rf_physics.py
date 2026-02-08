@@ -22,7 +22,7 @@ def calculate_fresnel_zone(dist_m, freq_mhz, p_d1, p_d2):
     return math.sqrt((1 * wavelength * p_d1 * p_d2) / dist_m)
 
 
-def calculate_bullington_loss(dist_m, elevs, freq_mhz, tx_h, rx_h):
+def calculate_bullington_loss(dist_m, elevs, freq_mhz, tx_h, rx_h, k_factor=1.333, clutter_height=0.0):
     """
     Calculate diffraction loss using Bullington method (Knife-Edge).
     This serves as a robust 'Terrain Aware' model.
@@ -44,15 +44,15 @@ def calculate_bullington_loss(dist_m, elevs, freq_mhz, tx_h, rx_h):
     intercept = tx_alt
     
     # Calculate Earth Bulge
-    k = 1.333
+    k = k_factor
     R_eff = k * EARTH_RADIUS_KM * 1000
     
     d1 = dists
     d2 = dist_m - dists
     bulge = (d1 * d2) / (2 * R_eff)
     
-    # Effective Terrain (Terrain + Bulge)
-    effective_terrain = profile + bulge
+    # Effective Terrain (Terrain + Bulge + Clutter)
+    effective_terrain = profile + bulge + clutter_height
     
     # LOS Height at each point
     los_h = (slope * dists) + intercept
@@ -127,7 +127,7 @@ def calculate_hata_loss(dist_m, freq_mhz, tx_h, rx_h, environment='urban_small')
     return max(0.0, loss)
 
 
-def calculate_path_loss(dist_m, elevs, freq_mhz, tx_h, rx_h, model='itm', environment='suburban'):
+def calculate_path_loss(dist_m, elevs, freq_mhz, tx_h, rx_h, model='bullington', environment='suburban', k_factor=1.333, clutter_height=0.0):
     """
     Generic Path Loss Calculator.
     Dispatches to specific model implementations.
@@ -145,30 +145,30 @@ def calculate_path_loss(dist_m, elevs, freq_mhz, tx_h, rx_h, model='itm', enviro
     if model == 'fspl':
         return fspl
         
-    # 3. ITM / Longley-Rice (Bullington Fallback for now)
-    if model == 'itm':
+    # 3. Bullington (Terrain Helper - previously misnamed as ITM)
+    if model == 'bullington' or model == 'itm':
         # Bullington is Diffraction ADDED to FSPL
-        diffraction = calculate_bullington_loss(dist_m, elevs, freq_mhz, tx_h, rx_h)
+        diffraction = calculate_bullington_loss(dist_m, elevs, freq_mhz, tx_h, rx_h, k_factor, clutter_height)
         return fspl + diffraction
         
     # Default fallback
     return fspl
 
 
-def analyze_link(elevs, dist_m, freq_mhz, tx_h, rx_h):
+def analyze_link(elevs, dist_m, freq_mhz, tx_h, rx_h, k_factor=1.333, clutter_height=0.0):
     # Standard Analysis
     elevs = np.array(elevs)
     num_points = len(elevs)
     dists = np.linspace(0, dist_m, num_points)
     
-    k = 1.333
+    k = k_factor
     R_eff = k * EARTH_RADIUS_KM * 1000
     
     d_tx = dists
     d_rx = dist_m - dists
     bulge = (d_tx * d_rx) / (2 * R_eff)
     
-    terrain_h = elevs + bulge
+    terrain_h = elevs + bulge + clutter_height
     
     tx_alt = elevs[0] + tx_h
     rx_alt = elevs[-1] + rx_h

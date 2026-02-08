@@ -111,8 +111,8 @@ const MapComponent = () => {
 
   // Propagation Model State
   const [propagationSettings, setPropagationSettings] = useState({
-    model: "itm", // Default to Longley-Rice (v1.8+)
-    environment: "urban_small", // Default to Urban
+    model: "itm_wasm", // Default to WASM ITM (most accurate)
+    environment: "suburban", // Default to Suburban
   });
   const selectionRef = React.useRef(0); // Track last selection time to prevent identical double-clicks
 
@@ -140,6 +140,7 @@ const MapComponent = () => {
     getAntennaHeightMeters,
     calculateSensitivity,
     rxHeight,
+    fadeMargin
   } = useRF();
 
   // Wasm Viewshed Tool Hook
@@ -226,7 +227,9 @@ const MapComponent = () => {
         freq,
         txPower: proxyTx,
         txGain: proxyGain,
-        rxGain: 2.15,
+        txLoss: cableLoss, // Task 1.1: Use calculated cable loss
+        rxLoss: 0, // Default 0 for coverage map until Cable Calculator (Task 1.5)
+        rxGain: nodeConfigs.B.antennaGain || 2.15,
         rxSensitivity: currentSensitivity,
         bw,
         sf,
@@ -268,6 +271,7 @@ const MapComponent = () => {
       sf,
       bw,
       pathLossOverride: pathLossVal,
+      fadeMargin
     });
   }
 
@@ -512,6 +516,9 @@ const MapComponent = () => {
             antennaHeight,
             getAntennaHeightMeters,
             rxHeight,
+            txLoss: cableLoss, // Task 1.1
+            rxLoss: 0,
+            rxAntennaGain: nodeConfigs.B.antennaGain,
           }}
         />
         <TileLayer
@@ -562,7 +569,9 @@ const MapComponent = () => {
                   .then((data) => {
                     console.log("Viewshed Debug - Fetched Elevation:", data);
                     const elevation = data.elevation || 0;
-                    const newObserver = { lat, lng, height: elevation + 2.0 };
+                    // Task 1.4: Use antenna height for viewshed observer from context if available, else 2.0
+                    const h = getAntennaHeightMeters ? getAntennaHeightMeters() : 2.0; 
+                    const newObserver = { lat, lng, height: h };
                     console.log(
                       "Viewshed Debug - Setting Observer:",
                       newObserver,
@@ -570,11 +579,12 @@ const MapComponent = () => {
                     setViewshedObserver(newObserver);
 
                     // Trigger Recalculation
-                    runAnalysis(lat, lng, elevation + 2.0, 25000);
+                    runAnalysis(lat, lng, h, 25000);
                   })
                   .catch((err) => {
                     console.error("Failed to fetch height", err);
-                    setViewshedObserver({ lat, lng, height: 2.0 });
+                    const h = getAntennaHeightMeters ? getAntennaHeightMeters() : 2.0;    
+                    setViewshedObserver({ lat, lng, height: h });
                   });
               },
             }}

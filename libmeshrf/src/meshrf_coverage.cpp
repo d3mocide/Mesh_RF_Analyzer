@@ -18,7 +18,10 @@ std::vector<float> calculate_rf_coverage(
     float rx_gain_dbi,
     float rx_sensitivity,
     int max_dist_pixels,
-    float gsd_meters
+    float gsd_meters,
+    float epsilon,
+    float sigma,
+    int climate
 ) {
     // Initialize result buffer with "no signal" value
     std::vector<float> signal_strength(width * height, -999.0f);
@@ -82,9 +85,9 @@ std::vector<float> calculate_rf_coverage(
             params.polarization = 1; // Vertical (typical for LoRa)
             params.step_size_m = gsd_meters;
             params.N_0 = 301.0; // Standard atmosphere
-            params.epsilon = 15.0; // Ground permittivity
-            params.sigma = 0.005; // Ground conductivity
-            params.climate = 5; // Continental Temperate
+            params.epsilon = epsilon; // Ground permittivity
+            params.sigma = sigma; // Ground conductivity
+            params.climate = climate; // Climate zone
             
             // Calculate path loss using ITM
             std::vector<float> losses = calculate_radial_loss(profile.data(), profile.size(), params);

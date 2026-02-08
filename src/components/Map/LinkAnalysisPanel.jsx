@@ -101,6 +101,9 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
 
     // Calculate Dimensions directly (Derived State)
     let layoutOffset = 380; // Recalibrated to eliminate dead space
+    if (propagationSettings && propagationSettings.model === 'hata' && (h1 < 30 || distance < 1 || distance > 20 || freq < 150 || freq > 1500)) {
+        layoutOffset += 60; // Extra room for Hata warnings
+    }
     if (diffractionLoss > 0) {
         layoutOffset += 70; // Extra room for obstruction box
     }
@@ -209,13 +212,19 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
                     <div style={{ flexGrow: 1, overflowY: 'auto', paddingRight: '12px', marginBottom: '16px' }}>
                         <div style={{ marginBottom: '16px', fontSize: '0.9em' }}>
                             <div style={{ marginBottom: '8px' }}>
+                                <strong style={{ color: '#00f2ff' }}>Quick Guide:</strong>
+                            </div>
+                            <div style={{ marginBottom: '8px' }}>
+                                <strong style={{ color: '#00f2ff' }}>Longley-Rice ITM:</strong> Full NTIA implementation running in browser (WASM). Uses terrain, diffraction, and troposcatter. Most accurate.
+                            </div>
+                            <div style={{ marginBottom: '8px' }}>
                                 <strong style={{ color: '#00f2ff' }}>FSPL:</strong> Idealized "Line of Sight" calculation. Best for very short distances or space-to-earth links.
                             </div>
                             <div style={{ marginBottom: '8px' }}>
                                 <strong style={{ color: '#00f2ff' }}>Okumura-Hata:</strong> Statistical model based on city measurements. Accounts for clutter and building density.
                             </div>
                             <div style={{ marginBottom: '12px' }}>
-                                <strong style={{ color: '#00f2ff' }}>ITM (Longley-Rice):</strong> High-precision terrain model. Accounts for diffraction over hills and earth curvature.
+                                <strong style={{ color: '#00f2ff' }}>Bullington (Legacy):</strong> Fast, terrain-aware diffraction model (formerly Python ITM). Good for general estimates.
                             </div>
                         </div>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', color: '#bbb' }}>
@@ -227,6 +236,10 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
                             </thead>
                             <tbody>
                                 <tr style={{ borderBottom: '1px solid #222' }}>
+                                    <td style={{ padding: '8px 4px', fontWeight: 'bold', color: '#00f2ff' }}>ITM (WASM)</td>
+                                    <td style={{ padding: '8px 4px' }}>General Purpose / Accurate</td>
+                                </tr>
+                                <tr style={{ borderBottom: '1px solid #222' }}>
                                     <td style={{ padding: '8px 4px', fontWeight: 'bold' }}>FSPL</td>
                                     <td style={{ padding: '8px 4px' }}>Bench tests & Space links</td>
                                 </tr>
@@ -235,7 +248,7 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
                                     <td style={{ padding: '8px 4px' }}>City-wide Mesh Planning</td>
                                 </tr>
                                 <tr>
-                                    <td style={{ padding: '8px 4px', fontWeight: 'bold', color: '#00ff41' }}>ITM</td>
+                                    <td style={{ padding: '8px 4px', fontWeight: 'bold', color: '#00ff41' }}>Bullington</td>
                                     <td style={{ padding: '8px 4px' }}>Long-range Rural / Hills</td>
                                 </tr>
                             </tbody>
@@ -253,7 +266,7 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
                                     <span style={{ color: '#00f2ff', fontWeight: '600' }}>Statistical (Hata)</span> ignores terrain and assumes flat ground. This results in heavy signal penalties for high-elevation links.
                                 </div>
                                 <div style={{ color: '#ccc' }}>
-                                    <span style={{ color: '#00ff41', fontWeight: '600' }}>Terrain (ITM)</span> accounts for hills and clear line-of-sight, providing accurate high-performance predictions for elevated antennas.
+                                    <span style={{ color: '#00ff41', fontWeight: '600' }}>Terrain (Bullington)</span> accounts for hills and clear line-of-sight, providing accurate high-performance predictions for elevated antennas.
                                 </div>
                             </div>
                         </div>
@@ -402,14 +415,15 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
                                     onChange={(e) => setPropagationSettings(prev => ({ ...prev, model: e.target.value }))}
                                     style={{ background: '#222', color: '#00f2ff', border: '1px solid #444', padding: '4px', borderRadius: '4px', fontSize: '0.8em', fontWeight: 'bold' }}
                                  >
+                                    <option value="itm_wasm">Longley-Rice ITM (Full)</option>
                                     <option value="fspl">Free Space (Optimistic)</option>
-                                    <option value="itm">Longley-Rice (Terrain)</option>
+                                    <option value="bullington">Bullington (Terrain Helper)</option>
                                     <option value="hata">Okumura-Hata (Statistical)</option>
                                  </select>
                              </div>
 
-                             {/* Model Info Tooltip moved here */}
-                             <div 
+                              {/* Model Info Tooltip moved here */}
+                              <div 
                                 onClick={() => setShowModelHelp(!showModelHelp)}
                                 style={{ 
                                     position: 'relative', 
@@ -429,20 +443,46 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
                                      <line x1="12" y1="8" x2="12.01" y2="8"></line>
                                   </svg>
                                   <span style={{ fontSize: '0.8em', whiteSpace: 'nowrap' }}>
-                                    {showModelHelp ? 'Hide Info' : (propagationSettings.model === 'itm' ? 'ITM' : (propagationSettings.model === 'hata' ? 'Hata' : 'Model'))} Info
+                                    {showModelHelp ? 'Hide Info' : (
+                                        propagationSettings.model === 'bullington' ? 'Bullington Info' : 
+                                        propagationSettings.model === 'hata' ? 'Hata Info' : 
+                                        propagationSettings.model === 'itm_wasm' ? 'ITM Info' : 
+                                        propagationSettings.model === 'fspl' ? 'LOS Info' :
+                                        'Model Info'
+                                    )}
                                   </span>
                               </div>
                          </div>
 
                          {/* Row 2: Env Selector */}
-                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                         <div 
+                            style={{ 
+                                display: 'flex', 
+                                gap: '8px', 
+                                alignItems: 'center',
+                                opacity: propagationSettings.model === 'hata' ? 1 : 0.4,
+                                transition: 'opacity 0.2s',
+                                filter: propagationSettings.model === 'hata' ? 'none' : 'grayscale(100%)'
+                            }}
+                            title={propagationSettings.model !== 'hata' ? "Environment settings only apply to the Okumura-Hata statistical model." : "Select clutter environment"}
+                         >
                             <label style={{ fontSize: '0.75em', color: '#888', minWidth: '40px' }} htmlFor="prop-env">Env:</label>
                             <select 
                                 id="prop-env"
                                 name="prop-env"
                                 value={propagationSettings.environment}
                                 onChange={(e) => setPropagationSettings(prev => ({ ...prev, environment: e.target.value }))}
-                                style={{ background: '#222', color: '#fff', border: '1px solid #444', padding: '4px', borderRadius: '4px', fontSize: '0.8em', flexGrow: 1 }}
+                                disabled={propagationSettings.model !== 'hata'}
+                                style={{ 
+                                    background: '#222', 
+                                    color: '#fff', 
+                                    border: '1px solid #444', 
+                                    padding: '4px', 
+                                    borderRadius: '4px', 
+                                    fontSize: '0.8em', 
+                                    flexGrow: 1,
+                                    cursor: propagationSettings.model === 'hata' ? 'pointer' : 'not-allowed'
+                                }}
                             >
                                 <option value="urban_small">Urban (Small/Medium)</option>
                                 <option value="urban_large">Urban (Large)</option>
@@ -450,6 +490,42 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
                                 <option value="rural">Rural / Open</option>
                             </select>
                          </div>
+
+                         {/* Hata Validity Warnings - COMPACT OVERLAY */}
+                         {propagationSettings.model === 'hata' && (
+                            <div style={{ 
+                                marginTop: '8px', 
+                                display: 'flex', 
+                                flexDirection: 'column', 
+                                gap: '4px', 
+                                padding: '6px', 
+                                background: 'rgba(255, 191, 0, 0.08)', 
+                                borderRadius: '4px', 
+                                border: '1px solid rgba(255, 191, 0, 0.2)',
+                                fontSize: '0.7em',
+                                maxHeight: '60px',
+                                overflowY: 'auto'
+                            }}>
+                                {(distance < 1 || distance > 20) && (
+                                    <div style={{ color: '#ffbf00', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <span>⚠</span> 
+                                        <span>Dist {distance.toFixed(1)}km (Limit 1-20km)</span>
+                                    </div>
+                                )}
+                                {h1 < 30 && (
+                                    <div style={{ color: '#ffbf00', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <span>⚠</span>
+                                        <span>TX {h1}m &lt; 30m (Hata Min)</span>
+                                    </div>
+                                )}
+                                {(freq < 150 || freq > 1500) && (
+                                    <div style={{ color: '#ffbf00', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <span>⚠</span>
+                                        <span>Freq {freq}MHz (Limit 150-1500)</span>
+                                    </div>
+                                )}
+                            </div>
+                         )}
                      </div>
                          
 

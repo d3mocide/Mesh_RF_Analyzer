@@ -7,6 +7,7 @@ import { DEVICE_PRESETS } from '../../data/presets';
 import { calculateLinkBudget, calculateFresnelRadius, calculateFresnelPolygon, analyzeLinkProfile, calculateBullingtonDiffraction } from '../../utils/rfMath';
 import { fetchElevationPath } from '../../utils/elevation';
 import { calculateLink } from '../../utils/rfService';
+import { useWasmITM } from '../../hooks/useWasmITM';
 import useThrottledCalculation from '../../hooks/useThrottledCalculation';
 import * as turf from '@turf/turf';
 
@@ -31,7 +32,7 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
         txPower: proxyTx, antennaGain: proxyGain, // we ignore proxies for calc
         freq, sf, bw, cableLoss, antennaHeight,
         kFactor, clutterHeight, recalcTimestamp,
-        editMode, setEditMode, nodeConfigs
+        editMode, setEditMode, nodeConfigs, fadeMargin
     } = useRF();
 
     // Refs for Manual Update Mode
@@ -46,6 +47,9 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
     useEffect(() => {
         configRef.current = { nodeConfigs, freq, kFactor, clutterHeight };
     }, [nodeConfigs, freq, kFactor, clutterHeight]);
+
+    // Initialize WASM ITM Hook
+    const { calculatePathLoss: calculateITM, isReady: itmReady } = useWasmITM();
 
     const getIcon = (type, isEditing) => {
         if (type === 'tx') {
@@ -73,17 +77,46 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
         const h1 = parseFloat(currentConfig.nodeConfigs.A.antennaHeight);
         const h2 = parseFloat(currentConfig.nodeConfigs.B.antennaHeight);
         const currentFreq = currentConfig.freq;
-        const currentModel = propagationSettings?.model?.toLowerCase() || 'itm';
+        const currentModel = propagationSettings?.model?.toLowerCase() || 'bullington';
         const currentEnv = propagationSettings?.environment || 'suburban';
 
         // Parallel fetch: Elevation for profile/chart, and Path Loss from Backend
         Promise.all([
             fetchElevationPath(p1, p2),
-            (currentModel === 'hata' || currentModel === 'itm') 
-                ? calculateLink(p1, p2, currentFreq, h1, h2, currentModel, currentEnv)
+            (currentModel === 'hata' || currentModel === 'bullington' || currentModel === 'itm') 
+                ? calculateLink(p1, p2, currentFreq, h1, h2, currentModel, currentEnv, currentConfig.kFactor, currentConfig.clutterHeight)
                 : Promise.resolve(null)
         ])
-        .then(([profile, backendResult]) => {
+        .then(async ([profile, backendResult]) => {
+            // WASM ITM Calculation override
+            if (currentModel === 'itm_wasm' && itmReady && profile) {
+                try {
+                    // Convert profile to flat array and calculate step size
+                    const elevationData = new Float32Array(profile.map(p => p.elevation));
+                    // Calculate step size from profile distance
+                    const totalDistMeters = profile[profile.length - 1].distance * 1000;
+                    const stepSize = totalDistMeters / (profile.length - 1);
+                    
+                    const loss = await calculateITM({
+                        elevationProfile: elevationData,
+                        stepSizeMeters: stepSize,
+                        frequencyMHz: currentFreq,
+                        txHeightM: h1,
+                        rxHeightM: h2,
+                        // Use defaults or pull from context if we had them here
+                        groundEpsilon: 15.0,
+                        groundSigma: 0.005,
+                        climate: 5
+                    });
+                    
+                    if (loss && loss !== Infinity) {
+                        backendResult = { path_loss_db: loss };
+                    }
+                } catch (e) {
+                    console.error("WASM ITM Failed", e);
+                }
+            }
+
             const stats = analyzeLinkProfile(
                 profile, 
                 currentFreq, 
@@ -241,7 +274,8 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
         distanceKm: distance, 
         freqMHz: freq,
         sf, bw,
-        pathLossOverride: linkStats.backendPathLoss || null
+        pathLossOverride: linkStats.backendPathLoss || null,
+        fadeMargin
     });
     
     // Calculate Diffraction Loss (Bullington) for visualization

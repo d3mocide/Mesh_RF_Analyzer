@@ -36,7 +36,10 @@ std::vector<float> calculate_rf_coverage(
     float rx_gain_dbi,
     float rx_sensitivity,
     int max_dist_pixels,
-    float gsd_meters
+    float gsd_meters,
+    float epsilon = 15.0f,
+    float sigma = 0.005f,
+    int climate = 5
 );
 
 #endif // MESHRF_COVERAGE_H

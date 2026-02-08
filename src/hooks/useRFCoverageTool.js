@@ -157,14 +157,18 @@ export const useRFCoverageTool = (active) => {
                 txCoords.x,
                 txCoords.y,
                 txHeight,
-                rfParams.rxHeight || 5.0, // New: RX Height (Default 5m for better stability)
+                rfParams.rxHeight || 2.0, // Task 1.3: Default matches RFContext rxHeight default (2.0m handheld)
                 rfParams.freq,
-                rfParams.txPower,
+                rfParams.txPower - (rfParams.txLoss || 0) - (rfParams.rxLoss || 0), // Task 1.1: Subtract cable losses
                 rfParams.txGain,
                 rfParams.rxGain,
                 rfParams.rxSensitivity,
                 maxDistPixels,
-                gsd
+                gsd,
+                // New Environment Params (defaults match C++ defaults if undefined)
+                rfParams.epsilon !== undefined ? rfParams.epsilon : 15.0,
+                rfParams.sigma !== undefined ? rfParams.sigma : 0.005,
+                rfParams.climate !== undefined ? rfParams.climate : 5
             );
             console.timeEnd("RF_Coverage_WASM_Execution");
             

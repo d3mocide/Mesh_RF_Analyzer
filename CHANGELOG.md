@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] - 2026-02-08
+
+### Added
+
+- **Asymmetric Hardware Config**: You can now configure independent antennas, heights, and power settings for **Node A** and **Node B**. Global mode remains available for simultaneous updates.
+- **Cable Loss Integration**: Added a dynamic cable loss calculator to the sidebar.
+  - Supports presets for **LMR-400, RG-58, LMR-240, and RG-174**.
+  - Calculates loss per meter/foot for accurate Estimated ERP.
+- **ITM Environment Controls**: Exposed advanced physics parameters for terrain analysis:
+  - **Ground Type**: Average, Poor, Good, Fresh Water, Sea Water (Dielectric & Conductivity).
+  - **Climate Zones**: Equatorial, Continental, Desert, Maritime, etc.
+  - Full integration with the WASM propagation engine.
+
+### Changed
+
+- **Sidebar Architecture Overhaul**:
+  - **Hardware Config**: Renamed and reorganized for better parameter flow (Antenna -> Cable -> Power -> ERP).
+  - **LoRa Band**: Renamed from "Radio Config" and set to **minimized by default** with the Radio Preset always visible in the header.
+  - **Environment Section**: Moved Environment (ITM) controls to the main sidebar level for easier access.
+  - **Physics Naming**: Renamed the legacy Python terrain model to **"Bullington (Diffraction)"** to differentiate it from high-fidelity ITM models.
+- **UI Spacing & Ergonomics**:
+  - Eliminated "dead space" between all sidebar sections.
+  - Fine-tuned padding for collapsible sections (`4px` when closed) for a tighter layout.
+  - Added visual "breathing room" to the Estimated ERP display.
+- **Model Information**:
+  - Updated tooltips in Link Analysis to accurately describe ITM vs Hata capabilities.
+
+### Fixed
+
+- **Sidebar Scroll Reset**: Fixed a critical bug where selecting a Radio Preset would scroll the sidebar to the top.
+- **Hata Warning Layout**: Fixed overlap issues when warnings appear in the Link Analysis panel.
+
 ## [1.10.0] - 2026-02-07
 
 ### Added

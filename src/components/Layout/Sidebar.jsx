@@ -1,7 +1,58 @@
 import React, { useState, useEffect } from 'react';
-import { RADIO_PRESETS, DEVICE_PRESETS, ANTENNA_PRESETS } from '../../data/presets';
-import { useRF } from '../../context/RFContext';
+import { RADIO_PRESETS, DEVICE_PRESETS, ANTENNA_PRESETS, CABLE_TYPES } from '../../data/presets';
+import { useRF, GROUND_TYPES, CLIMATE_ZONES } from '../../context/RFContext';
 import BatchProcessing from '../Map/BatchProcessing';
+
+const CollapsibleSection = ({ title, isOpen, onToggle, children, isShared = false, isITM = false, alwaysVisible = null }) => (
+    <div style={{
+        marginBottom: 'var(--spacing-xs)', // Reduced from md to bring next section closer
+        borderBottom: '1px solid var(--color-border)',
+        paddingBottom: isOpen ? 'var(--spacing-sm)' : '4px' 
+    }}>
+        <h3 
+            onClick={onToggle}
+            style={{
+                fontSize: '1rem', 
+                color: '#fff', 
+                margin: '0 0 var(--spacing-sm) 0',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                userSelect: 'none'
+            }}
+        >
+            <div>
+                {title}
+                {isShared && <span style={{fontSize: '0.8em', color: '#888', fontWeight: 'normal', marginLeft: '6px'}}>(Shared)</span>}
+                {isITM && <span style={{fontSize: '0.8em', color: '#888', fontWeight: 'normal', marginLeft: '6px'}}>(ITM)</span>}
+            </div>
+            <span style={{fontSize: '0.8em', color: '#888', display: 'flex', alignItems: 'center'}}>
+                {isOpen ? (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M6 9l6 6 6-6"/>
+                    </svg>
+                ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 18l6-6-6-6"/>
+                    </svg>
+                )}
+            </span>
+        </h3>
+        
+        {alwaysVisible && (
+            <div style={{ marginBottom: isOpen ? '12px' : '8px' }}> {/* Added margin when closed */}
+                {alwaysVisible}
+            </div>
+        )}
+
+        {isOpen && (
+            <div style={{ animation: 'fadeIn 0.2s ease-in-out' }}>
+                {children}
+            </div>
+        )}
+    </div>
+);
 
 const Sidebar = () => {
     const {
@@ -11,6 +62,8 @@ const Sidebar = () => {
         txPower, setTxPower,
         antennaHeight, setAntennaHeight,
         antennaGain, setAntennaGain,
+        selectedCableType, setSelectedCableType,
+        cableLength, setCableLength,
         freq, setFreq,
         bw, setBw,
         sf, setSf,
@@ -27,10 +80,13 @@ const Sidebar = () => {
         rxHeight, setRxHeight,
         toolMode,
         sidebarIsOpen, setSidebarIsOpen,
-        isMobile
+        isMobile,
+        groundType, setGroundType,
+        climate, setClimate,
+        fadeMargin, setFadeMargin
     } = useRF();
 
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
 
     // Initial sync
     useEffect(() => {
@@ -73,7 +129,16 @@ const Sidebar = () => {
 
     const selectStyle = {
         ...inputStyle,
-        cursor: 'pointer'
+        cursor: 'pointer',
+        // Arrow SVG (Cyan Chevron)
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2300f2ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'right 8px center',
+        backgroundSize: '16px',
+        paddingRight: '32px', // Space for arrow
+        appearance: 'none',
+        WebkitAppearance: 'none',
+        MozAppearance: 'none'
     };
 
     const buttonStyle = {
@@ -86,6 +151,20 @@ const Sidebar = () => {
         fontSize: '0.9rem',
         marginTop: '8px'
     };
+
+    const [sections, setSections] = useState({
+        hardware: true,
+        radio: false,
+        environment: true
+    });
+
+    const toggleSection = (section) => {
+        setSections(prev => ({ ...prev, [section]: !prev[section] }));
+    };
+
+
+
+
 
   return (
     <>
@@ -112,7 +191,15 @@ const Sidebar = () => {
             fontSize: '10px'
         }}
       >
-        {isOpen ? '◀' : '▶'}
+        {isOpen ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 18l-6-6 6-6"/>
+            </svg>
+        ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18l6-6-6-6"/>
+            </svg>
+        )}
       </button>
 
       <aside style={{
@@ -149,58 +236,72 @@ const Sidebar = () => {
         <img src="/icon.svg" alt="App Icon" style={{ height: '24px', width: '24px' }} /> meshRF
       </h2>
 
-      {/* EDIT MODE BANNER */}
+      {/* EDIT MODE BANNER - COMPACT */}
       {editMode !== 'GLOBAL' && (
           <div style={{
-              background: editMode === 'A' ? 'rgba(0, 255, 65, 0.15)' : 'rgba(255, 50, 50, 0.15)',
-              border: `1px solid ${editMode === 'A' ? '#00ff41' : '#ff0000'}`,
-              borderRadius: '8px',
-              padding: '12px',
-              marginBottom: '20px',
-              textAlign: 'center'
+              background: editMode === 'A' ? 'rgba(0, 255, 65, 0.1)' : 'rgba(255, 50, 50, 0.1)',
+              borderLeft: `3px solid ${editMode === 'A' ? '#00ff41' : '#ff0000'}`,
+              padding: '8px 12px',
+              marginBottom: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
           }}>
-              <div style={{fontSize: '0.8em', color: '#ccc', letterSpacing: '1px', textTransform: 'uppercase'}}>
-                  EDITING CONFIGURATION FOR
+              <div>
+                  <div style={{fontSize: '0.7em', color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.5px', lineHeight: '1'}}>
+                      Editing Config
+                  </div>
+                  <div style={{
+                      color: editMode === 'A' ? '#00ff41' : '#ff4444', 
+                      fontWeight: '700', 
+                      fontSize: '0.95em',
+                      marginTop: '4px'
+                  }}>
+                      {editMode === 'A' ? 'NODE A (TX)' : 'NODE B (RX)'}
+                  </div>
               </div>
-              <div style={{
-                  color: editMode === 'A' ? '#00ff41' : '#ff0000', 
-                  fontWeight: 'bold', 
-                  fontSize: '1.2em',
-                  margin: '4px 0 8px 0'
-              }}>
-                  {editMode === 'A' ? 'NODE A (TX)' : 'NODE B (RX)'}
-              </div>
+
               <button 
                   onClick={() => setEditMode('GLOBAL')}
                   style={{
-                      background: 'rgba(255,255,255,0.1)',
-                      border: 'none',
-                      color: '#fff',
-                      padding: '4px 12px',
+                      background: 'rgba(255, 255, 255, 0.08)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: '#ddd',
                       borderRadius: '4px',
+                      padding: '4px 8px',
                       cursor: 'pointer',
-                      fontSize: '0.85em',
+                      fontSize: '0.75em',
+                      fontWeight: '600',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '6px',
-                      margin: '0 auto'
+                      gap: '4px',
+                      transition: 'all 0.2s'
+                  }}
+                  onMouseOver={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                      e.currentTarget.style.color = '#fff';
+                  }}
+                  onMouseOut={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                      e.currentTarget.style.color = '#ddd';
                   }}
               >
-                  ❌ Done
+                  <span>Done</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
               </button>
           </div>
       )}
       
       {/* DEVICE SELECTION */}
-      <div style={{
-          ...sectionStyle,
-          borderLeft: editMode !== 'GLOBAL' ? `3px solid ${editMode === 'A' ? '#00ff41' : '#ff0000'}` : 'none',
-          paddingLeft: editMode !== 'GLOBAL' ? '12px' : '0'
-      }}>
-        <h3 style={{fontSize: '1rem', color: '#fff', margin: '0 0 var(--spacing-sm) 0'}}>
-            {editMode === 'GLOBAL' ? 'Hardware Defaults' : 'Node Hardware'}
-        </h3>
-        
+      <CollapsibleSection 
+          title={editMode === 'GLOBAL' ? 'Hardware Config' : 'Node Hardware'}
+          isOpen={sections.hardware}
+          onToggle={() => toggleSection('hardware')}
+      >
+        <div style={{ paddingLeft: editMode !== 'GLOBAL' ? '12px' : '0', borderLeft: editMode !== 'GLOBAL' ? `3px solid ${editMode === 'A' ? '#00ff41' : '#ff0000'}` : 'none' }}>
         <label style={labelStyle} htmlFor="device-preset">Device Preset</label>
         <select 
             id="device-preset"
@@ -257,6 +358,82 @@ const Sidebar = () => {
             style={{width: '100%', cursor: 'pointer'}}
         />
 
+        {/* RX Height Slider - Only for RF Coverage Tool */}
+        {toolMode === 'rf_coverage' && (
+            <div style={{marginTop: 'var(--spacing-md)'}}>
+                <label style={labelStyle} htmlFor="rx-height">
+                    Receiver Height: {units === 'imperial' ? `${(rxHeight * 3.28084).toFixed(0)} ft` : `${rxHeight} m`}
+                    <span style={{color: 'var(--color-text-muted)', marginLeft: '8px', fontSize: '0.8em'}}>
+                        ({rxHeight <= 2 ? 'Handheld' : rxHeight <= 5 ? 'Vehicle' : 'Mast'})
+                    </span>
+                </label>
+                <input 
+                    id="rx-height"
+                    name="rx-height"
+                    type="range" 
+                    min="1" max="30" steps="1"
+                    value={rxHeight} 
+                    onChange={(e) => setRxHeight(Number(e.target.value))}
+                    style={{width: '100%', cursor: 'pointer', accentColor: 'var(--color-secondary)'}} 
+                />
+            </div>
+        )}
+
+        {/* CABLE CONFIGURATION */}
+        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-sm)', marginTop: 'var(--spacing-sm)'}}>
+            <div>
+                <label style={labelStyle} htmlFor="cable-type">Cable Type</label>
+                <select 
+                    id="cable-type"
+                    name="cable-type"
+                    style={selectStyle}
+                    value={selectedCableType}
+                    onChange={(e) => setSelectedCableType(e.target.value)}
+                >
+                    {Object.values(CABLE_TYPES).map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                </select>
+            </div>
+            <div>
+                <label style={labelStyle} htmlFor="cable-length">Length ({units === 'imperial' ? 'ft' : 'm'})</label>
+                <input 
+                    id="cable-length"
+                    name="cable-length"
+                    type="number" 
+                    min="0" step="0.5"
+                    style={inputStyle} 
+                    value={units === 'imperial' ? (cableLength * 3.28084).toFixed(1) : cableLength} 
+                    onChange={(e) => {
+                        const val = Number(e.target.value);
+                        // Store in meters always
+                        setCableLength(units === 'imperial' ? val / 3.28084 : val);
+                    }}
+                />
+            </div>
+        </div>
+
+
+
+
+
+        <label style={labelStyle} htmlFor="tx-power">
+            TX Power (dBm): {txPower} 
+            <span style={{color: 'var(--color-secondary)', marginLeft: '8px'}}>
+                (Max: {DEVICE_PRESETS[selectedDevice].tx_power_max})
+            </span>
+        </label>
+        <input 
+            id="tx-power"
+            name="tx-power"
+            type="range" 
+            min="0" 
+            max={DEVICE_PRESETS[selectedDevice].tx_power_max} 
+            value={txPower} 
+            onChange={handleTxPowerChange}
+            style={{width: '100%', cursor: 'pointer', accentColor: 'var(--color-primary)'}}
+        />
+
         {/* Manual Recalculation Trigger */}
         <button
             onClick={triggerRecalc}
@@ -280,124 +457,17 @@ const Sidebar = () => {
             onMouseOver={(e) => e.target.style.background = 'rgba(0, 255, 65, 0.2)'}
             onMouseOut={(e) => e.target.style.background = 'rgba(0, 255, 65, 0.1)'}
         >
-            <span>⟳</span> Update Calculation
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
+             Update Calculation
         </button>
-      </div>
-
-      {/* RADIO SETTINGS */}
-      <div style={{
-          ...sectionStyle,
-          borderBottom: 'none' // Handled by BatchProcessing top border
-      }}>
-        <h3 style={{fontSize: '1rem', color: '#fff', margin: '0 0 var(--spacing-sm) 0'}}>
-            Radio Config <span style={{fontSize: '0.8em', color: '#888', fontWeight: 'normal'}}>(Shared)</span>
-        </h3>
-        
-        <label style={labelStyle} htmlFor="radio-preset">Radio Preset</label>
-        <select 
-            id="radio-preset"
-            name="radio-preset"
-            style={selectStyle}
-            value={selectedRadioPreset}
-            onChange={(e) => setSelectedRadioPreset(e.target.value)}
-        >
-            {Object.values(RADIO_PRESETS).map(preset => (
-                <option key={preset.id} value={preset.id}>{preset.name}</option>
-            ))}
-        </select>
-
-        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-sm)'}}>
-            <div>
-                <label style={labelStyle} htmlFor="radio-freq">Freq (MHz)</label>
-                <input 
-                    id="radio-freq"
-                    name="radio-freq"
-                    type="number" 
-                    style={inputStyle} 
-                    value={freq} 
-                    disabled={!isCustom}
-                    onChange={(e) => isCustom && setFreq(e.target.value)}
-                />
-            </div>
-             <div>
-                <label style={labelStyle} htmlFor="radio-bw">BW (kHz)</label>
-                <input 
-                    id="radio-bw"
-                    name="radio-bw"
-                    type="number" 
-                    style={inputStyle} 
-                    value={bw} 
-                    disabled={!isCustom}
-                    onChange={(e) => isCustom && setBw(e.target.value)}
-                />
-            </div>
-             <div>
-                <label style={labelStyle} htmlFor="radio-sf">SF</label>
-                <input 
-                    id="radio-sf"
-                    name="radio-sf"
-                    type="number" 
-                    style={inputStyle} 
-                    value={sf} 
-                    disabled={!isCustom}
-                    onChange={(e) => isCustom && setSf(e.target.value)}
-                />
-            </div>
-             <div>
-                <label style={labelStyle} htmlFor="radio-cr">CR</label>
-                <input 
-                    id="radio-cr"
-                    name="radio-cr"
-                    type="number" 
-                    style={inputStyle} 
-                    value={cr} 
-                    disabled={!isCustom}
-                    onChange={(e) => isCustom && setCr(e.target.value)}
-                />
-            </div>
-        </div>
-
-        <label style={labelStyle} htmlFor="tx-power">
-            TX Power (dBm): {txPower} 
-            <span style={{color: 'var(--color-secondary)', marginLeft: '8px'}}>
-                (Max: {DEVICE_PRESETS[selectedDevice].tx_power_max})
-            </span>
-        </label>
-        <input 
-            id="tx-power"
-            name="tx-power"
-            type="range" 
-            min="0" 
-            max={DEVICE_PRESETS[selectedDevice].tx_power_max} 
-            value={txPower} 
-            onChange={handleTxPowerChange}
-            style={{width: '100%', cursor: 'pointer', accentColor: 'var(--color-primary)'}}
-        />
-
-        {/* RX Height Slider - Only for RF Coverage Tool */}
-        {toolMode === 'rf_coverage' && (
-            <div style={{marginTop: 'var(--spacing-md)'}}>
-                <label style={labelStyle} htmlFor="rx-height">
-                    Receiver Height: {units === 'imperial' ? `${(rxHeight * 3.28084).toFixed(0)} ft` : `${rxHeight} m`}
-                    <span style={{color: 'var(--color-text-muted)', marginLeft: '8px', fontSize: '0.8em'}}>
-                        ({rxHeight <= 2 ? 'Handheld' : rxHeight <= 5 ? 'Vehicle' : 'Mast'})
-                    </span>
-                </label>
-                <input 
-                    id="rx-height"
-                    name="rx-height"
-                    type="range" 
-                    min="1" max="30" steps="1"
-                    value={rxHeight} 
-                    onChange={(e) => setRxHeight(Number(e.target.value))}
-                    style={{width: '100%', cursor: 'pointer', accentColor: 'var(--color-secondary)'}} 
-                />
-            </div>
-        )}
 
         {/* ERP CALCULATION DISPLAY */}
         <div style={{
             marginTop: 'var(--spacing-md)', 
+            marginBottom: '12px', // Added spacing below
             padding: 'var(--spacing-sm)', 
             background: 'var(--glass-bg)', 
             borderRadius: 'var(--radius-md)',
@@ -450,13 +520,188 @@ const Sidebar = () => {
             </a>
 
         </div>
+        </div>
+      </CollapsibleSection>
+
+
+      {/* ENVIRONMENT SETTINGS */}
+      <CollapsibleSection 
+          title="Environment" 
+          isOpen={sections.environment} 
+          onToggle={() => toggleSection('environment')}
+          isITM={true}
+      >
+        <div style={{display: 'flex', flexDirection: 'column', gap: '12px'}}>
+             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px'}}>
+                 <div>
+                     <label style={{fontSize: '0.75em', color: '#888', display: 'block', marginBottom: '4px'}} htmlFor="k-factor">
+                         Refraction (K)
+                     </label>
+                     <input 
+                        type="number" 
+                        step="0.01"
+                        id="k-factor"
+                        name="k-factor"
+                        value={kFactor}
+                        onChange={(e) => setKFactor(parseFloat(e.target.value))}
+                        style={{...inputStyle, padding: '6px', fontSize: '0.9em'}}
+                     />
+                 </div>
+                 <div>
+                     <label style={{fontSize: '0.75em', color: '#888', display: 'block', marginBottom: '4px'}} htmlFor="clutter-height">
+                         Clutter (m)
+                     </label>
+                     <input 
+                        type="number" 
+                        step="1"
+                        id="clutter-height"
+                        name="clutter-height"
+                        value={clutterHeight}
+                        onChange={(e) => setClutterHeight(parseFloat(e.target.value))}
+                        style={{...inputStyle, padding: '6px', fontSize: '0.9em'}}
+                     />
+                 </div>
+             </div>
+             
+             {/* Ground Type */}
+             <div>
+                <label style={{fontSize: '0.75em', color: '#888', display: 'block', marginBottom: '4px'}}>Ground Type</label>
+                <select
+                    value={groundType}
+                    onChange={(e) => setGroundType(e.target.value)}
+                    style={{...selectStyle, padding: '6px', fontSize: '0.9em', width: '100%'}}
+                >
+                    {Object.keys(GROUND_TYPES).map(type => (
+                        <option key={type} value={type}>{type}</option>
+                    ))}
+                </select>
+             </div>
+
+             {/* Climate Zone */}
+             <div>
+                <label style={{fontSize: '0.75em', color: '#888', display: 'block', marginBottom: '4px'}}>Climate Zone</label>
+                <select
+                    value={climate}
+                    onChange={(e) => setClimate(Number(e.target.value))}
+                    style={{...selectStyle, padding: '6px', fontSize: '0.9em', width: '100%'}}
+                >
+                    {Object.entries(CLIMATE_ZONES).map(([id, name]) => (
+                        <option key={id} value={id}>{id} - {name}</option>
+                    ))}
+                </select>
+             </div>
+
+             {/* Fade Margin */}
+             <div>
+                 <label style={{fontSize: '0.75em', color: '#888', display: 'block', marginBottom: '4px'}} htmlFor="fade-margin">
+                     Fade Margin (dB)
+                 </label>
+                 <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                     <input 
+                        type="range" 
+                        min="0" max="20" step="1"
+                        id="fade-margin"
+                        name="fade-margin"
+                        value={fadeMargin}
+                        onChange={(e) => setFadeMargin(Number(e.target.value))}
+                        style={{flexGrow: 1, accentColor: 'var(--color-primary)', cursor: 'pointer'}}
+                     />
+                     <span style={{fontSize: '0.9em', color: '#fff', width: '24px', textAlign: 'right', fontWeight: 'bold'}}>{fadeMargin}</span>
+                 </div>
+             </div>
+        </div>
+      </CollapsibleSection>
+
+      {/* LORA BAND SETTINGS */}
+      <CollapsibleSection 
+          title="LoRa Band" 
+          isOpen={sections.radio} 
+          onToggle={() => toggleSection('radio')}
+          alwaysVisible={
+            <div>
+                <label style={labelStyle} htmlFor="radio-preset">Radio Preset</label>
+                <select 
+                    id="radio-preset"
+                    name="radio-preset"
+                    style={selectStyle}
+                    value={selectedRadioPreset}
+                    onChange={(e) => setSelectedRadioPreset(e.target.value)}
+                >
+                    {Object.values(RADIO_PRESETS).map(preset => (
+                        <option key={preset.id} value={preset.id}>{preset.name}</option>
+                    ))}
+                </select>
+            </div>
+          }
+      >
+
+        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-sm)'}}>
+            <div>
+                <label style={labelStyle} htmlFor="radio-freq">Freq (MHz)</label>
+                <input 
+                    id="radio-freq"
+                    name="radio-freq"
+                    type="number" 
+                    style={inputStyle} 
+                    value={freq} 
+                    disabled={!isCustom}
+                    onChange={(e) => isCustom && setFreq(e.target.value)}
+                />
+            </div>
+             <div>
+                <label style={labelStyle} htmlFor="radio-bw">BW (kHz)</label>
+                <input 
+                    id="radio-bw"
+                    name="radio-bw"
+                    type="number" 
+                    style={inputStyle} 
+                    value={bw} 
+                    disabled={!isCustom}
+                    onChange={(e) => isCustom && setBw(e.target.value)}
+                />
+            </div>
+             <div>
+                <label style={labelStyle} htmlFor="radio-sf">SF</label>
+                <input 
+                    id="radio-sf"
+                    name="radio-sf"
+                    type="number" 
+                    style={inputStyle} 
+                    value={sf} 
+                    disabled={!isCustom}
+                    onChange={(e) => isCustom && setSf(e.target.value)}
+                />
+            </div>
+             <div>
+                <label style={labelStyle} htmlFor="radio-cr">CR</label>
+                <input 
+                    id="radio-cr"
+                    name="radio-cr"
+                    type="number" 
+                    style={inputStyle} 
+                    value={cr} 
+                    disabled={!isCustom}
+                    onChange={(e) => isCustom && setCr(e.target.value)}
+                />
+            </div>
+        </div>
+
+
+
+        {/* RX Height Slider - Only for RF Coverage Tool */}
+
+
+
+      </CollapsibleSection>
+
 
 
       {/* BATCH PROCESSING */}
+      {/* BATCH PROCESSING */}
       <div style={{
-          marginTop: 'var(--spacing-lg)', 
+          marginTop: '0', 
           paddingTop: 'var(--spacing-md)', 
-          borderTop: '1px solid var(--color-border)'
+          borderTop: '0px solid var(--color-border)'
       }}>
         <BatchProcessing />
       </div>
@@ -466,12 +711,10 @@ const Sidebar = () => {
             marginBottom: 'var(--spacing-lg)'
         }}>
              <h3 
-                onClick={() => setIsSettingsOpen(!isSettingsOpen)}
                 style={{
                     fontSize: '1rem', 
                     color: '#fff', 
                     margin: '0 0 var(--spacing-sm) 0',
-                    cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -479,13 +722,9 @@ const Sidebar = () => {
                 }}
              >
                 Settings
-                <span style={{fontSize: '0.8em', color: '#888'}}>
-                    {isSettingsOpen ? '▼' : '▶'}
-                </span>
              </h3>
              
-             {isSettingsOpen && (
-                 <>
+             <div style={{ animation: 'fadeIn 0.2s ease-in-out' }}>
              <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px'}}>
                  <label style={{color: '#aaa', fontSize: '0.9em'}}>Units</label>
                  <div style={{display: 'flex', background: 'rgba(0,0,0,0.3)', borderRadius: '4px', overflow: 'hidden', border: '1px solid #444'}}>
@@ -520,44 +759,8 @@ const Sidebar = () => {
                  </div>
              </div>
              
-             {/* Environmental Settings */}
-             <div style={{marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px dashed #444'}}>
-                 <label style={{color: '#aaa', fontSize: '0.9em', display: 'block', marginBottom: '8px'}}>Environment</label>
-                 
-                 <div style={{display: 'flex', flexDirection: 'column', gap: '12px'}}>
-                     <div>
-                         <label style={{fontSize: '0.75em', color: '#888', display: 'block', marginBottom: '4px'}} htmlFor="k-factor">
-                             Refraction Index (K-Factor)
-                         </label>
-                         <input 
-                            type="number" 
-                            step="0.01"
-                            id="k-factor"
-                            name="k-factor"
-                            value={kFactor}
-                            onChange={(e) => setKFactor(parseFloat(e.target.value))}
-                            style={{...inputStyle, padding: '6px', fontSize: '0.9em'}}
-                         />
-                         <div style={{fontSize: '0.7em', color: '#555', marginTop: '2px'}}>
-                            Standard: 1.33, LOS: 1.0
-                         </div>
-                     </div>
-                     <div>
-                         <label style={{fontSize: '0.75em', color: '#888', display: 'block', marginBottom: '4px'}} htmlFor="clutter-height">
-                             Clutter Height (m)
-                         </label>
-                         <input 
-                            type="number" 
-                            step="1"
-                            id="clutter-height"
-                            name="clutter-height"
-                            value={clutterHeight}
-                            onChange={(e) => setClutterHeight(parseFloat(e.target.value))}
-                            style={{...inputStyle, padding: '6px', fontSize: '0.9em'}}
-                         />
-                     </div>
-                 </div>
-             </div>
+             
+             {/* Map Theme Selector */}
 
 
             {/* Map Theme Selector */}
@@ -586,8 +789,7 @@ const Sidebar = () => {
                      <option value="satellite">Satellite</option>
                  </select>
              </div>
-             </>
-             )}
+             </div>
         </div>
 
              {/* Footer */}
@@ -604,7 +806,7 @@ const Sidebar = () => {
                     d3mocide/MeshRF
                  </a>
              </div>
-        </div>
+
 
     </aside>
     

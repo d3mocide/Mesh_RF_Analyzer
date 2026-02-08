@@ -46,3 +46,21 @@ libmeshrf/build_wasm/
 knip_report.json
 rf-engine/vulture_report.txt
 docs
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Python virtual environments
+venv/
+.venv/
+env/
+
+# Python build artifacts
+build/
+dist/
+*.egg-info/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/

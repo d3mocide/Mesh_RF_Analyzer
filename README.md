@@ -1,4 +1,4 @@
-# meshRF 📡 v1.9.1
+# meshRF 📡 v1.11.0
 
 A professional-grade RF propagation and link analysis tool designed for LoRa Mesh networks (Meshtastic, Reticulum, Sidewinder). Built with **React**, **Leaflet**, and a high-fidelity **Python Geodetic Physics Engine**.
 
@@ -10,20 +10,23 @@ meshRF is designed for **mission-critical availability**. It operates with **zer
 
 ### 1. 📡 High-Fidelity RF Analysis
 
-- **Server-Side Physics**: All calculations now run on a dedicated Python backend using **NumPy** and **SciPy** for maximum accuracy.
+- **Physics Authority**: All calculations use a dedicated Python backend or local WASM modules for maximum accuracy.
 - **Advanced Models**:
-  - **ITM (Longley-Rice)**: The gold standard for irregular terrain modeling (via Bullington Diffraction).
-  - **Okumura-Hata**: Standard empirical model for **Urban, Suburban, and Open** environments (150-1500 MHz). Ignores specific terrain features in favor of statistical clutter (buildings/trees).
-  - **Free Space**: Optimistic baseline comparison.
-- **Asymmetric Links**: Configure unique hardware (power, gain, height) for Node A and Node B independently.
+  - **ITM (Longley-Rice)**: The absolute standard for irregular terrain modeling.
+  - **Okumura-Hata**: Empirical model for Urban/Suburban environments.
+  - **Free Space**: baseline baseline.
+- **Model Selector**: Comparison tool to instantly switch between models for A/B testing.
+- **Asymmetric Links**: Configure unique hardware (power, gain, height) for **Node A** and **Node B** independently.
+- **Cable Loss Calculator**: Built-in engine to calculate real-world losses based on cable type and length.
 - **Dynamic Fresnel visualization**: Real-time 2D profiles showing LOS and Fresnel zone clearance using backend-generated geometry.
 
 ### 2. 📍 Advanced Site Surveying
 
-- **Multi-Site Management** (In Test): Dedicated manager for maintaining and comparing lists of candidate sites (`manual` mode).
+- **Multi-Site Management**: Dedicated manager for maintaining and comparing lists of candidate sites.
 - **Grid-Based Location Optimization**: Scan user-defined bounding boxes to identify optimal node placement based on elevation, prominence, and Fresnel clearance.
-- **RF Coverage Simulator** (In Test): Optimized Wasm-powered ITM propagation modeling for wide-area coverage visualization.
-- **Viewshed Analysis**: Desktop-grade viewshed calculations with "Shadow Mode" visualization (Green/Purple) for precise LOS checking.
+- **RF Coverage Simulator**: Optimized Wasm-powered ITM propagation modeling for wide-area coverage visualization.
+- **Viewshed Analysis**: Desktop-grade viewshed calculations with "Shadow Mode" visualization.
+- **Environment Tuning**: fine-tune analysis with **Ground Type** and **Climate Zone** parameters.
 
 ### 3. ⚡ Batch Operations & reporting
 
