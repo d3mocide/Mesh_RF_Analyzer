@@ -1,6 +1,6 @@
-# meshRF 📡 v1.11.0
+# meshRF 📡 v1.12.0
 
-A professional-grade RF propagation and link analysis tool designed for LoRa Mesh networks (Meshtastic, Reticulum, Sidewinder). Built with **React**, **Leaflet**, and a high-fidelity **Python Geodetic Physics Engine**.
+A professional-grade RF propagation and link analysis tool designed for LoRa Mesh networks (Meshtastic, Reticulum, Sidewinder). Built with **React**, **Leaflet**, and a high-fidelity physics core combining a **Python Geodetic Engine** with **High-Performance WASM Modules**.
 
 meshRF is designed for **mission-critical availability**. It operates with **zero external API dependencies** for elevation data, serving high-resolution terrain data directly from self-hosted containers. Currently we do rely on exteranl API's for map tiles but that will be updated soon as well for full offline use. (optional)
 
@@ -12,9 +12,10 @@ meshRF is designed for **mission-critical availability**. It operates with **zer
 
 - **Physics Authority**: All calculations use a dedicated Python backend or local WASM modules for maximum accuracy.
 - **Advanced Models**:
-  - **ITM (Longley-Rice)**: The absolute standard for irregular terrain modeling.
-  - **Okumura-Hata**: Empirical model for Urban/Suburban environments.
-  - **Free Space**: baseline baseline.
+  - **ITM (Longley-Rice)**: High-precision WASM physical modeling.
+  - **Bullington**: Terrain-aware diffraction (Backend).
+  - **Okumura-Hata**: Empirical model for urban zones.
+  - **Free Space**: Baseline physics comparison.
 - **Model Selector**: Comparison tool to instantly switch between models for A/B testing.
 - **Asymmetric Links**: Configure unique hardware (power, gain, height) for **Node A** and **Node B** independently.
 - **Cable Loss Calculator**: Built-in engine to calculate real-world losses based on cable type and length.
@@ -26,7 +27,7 @@ meshRF is designed for **mission-critical availability**. It operates with **zer
 - **Grid-Based Location Optimization**: Scan user-defined bounding boxes to identify optimal node placement based on elevation, prominence, and Fresnel clearance.
 - **RF Coverage Simulator**: Optimized Wasm-powered ITM propagation modeling for wide-area coverage visualization.
 - **Viewshed Analysis**: Desktop-grade viewshed calculations with "Shadow Mode" visualization.
-- **Environment Tuning**: fine-tune analysis with **Ground Type** and **Climate Zone** parameters.
+- **Environment Tuning**: Fine-tune simulations with **Ground Type** ($\epsilon$, $\sigma$) and **Climate Zone** parameters for regional accuracy. Supports Sea Water, City/Industrial, Farmland, and more.
 
 ### 3. ⚡ Batch Operations & reporting
 
@@ -60,14 +61,15 @@ meshRF is fully installable on **Desktop (Chrome/Edge)** and **Mobile (iOS/Andro
 
 meshRF supports multiple propagation models to suit different environments:
 
-| Model                  | Best For          | Characteristics                                           |
-| :--------------------- | :---------------- | :-------------------------------------------------------- |
-| **Free Space (FSPL)**  | Ideal LOS, Orbit  | Baseline physics, no terrain or environment effects.      |
-| **Okumura-Hata**       | Flat/Suburban     | Empirical model for urban/suburban. Assumes flat terrain. |
-| **ITM (Longley-Rice)** | Irregular Terrain | **Recommended**. High-fidelity terrain-aware modeling.    |
+| Model                  | Best For          | Characteristics                                                                |
+| :--------------------- | :---------------- | :----------------------------------------------------------------------------- |
+| **Free Space (FSPL)**  | Ideal LOS, Orbit  | Baseline physics, no terrain or environment effects.                           |
+| **Okumura-Hata**       | Flat/Suburban     | Empirical model for urban/suburban. Assumes flat terrain.                      |
+| **Bullington**         | Terrain/Mesh      | Efficient terrain-aware diffraction. Fast & reliable for terrestrial links.    |
+| **ITM (Longley-Rice)** | Irregular Terrain | **Gold Standard**. High-fidelity WASM-powered physical modeling. Ground-aware. |
 
 > [!TIP]
-> Use **ITM** for most terrestrial link analyses to account for hills and varying terrain heights. Use **Okumura-Hata** for quick city-wide surveys where buildings dominate over terrain.
+> Use **ITM (Longley-Rice)** for mission-critical link analysis. It accounts for irregular terrain, diffraction, troposcatter, and specific ground/climate parameters. Use **Bullington** for rapid terrain-aware estimates.
 
 ---
 
@@ -115,7 +117,8 @@ You can customize the application behavior by setting environment variables in `
 ## 🏗️ Architecture
 
 - **Frontend**: React + Leaflet + Vite.
-- **RF Engine**: FastAPI Python service. Now the central **Physics Authority**, handling all propagation models (ITM, Hata, FSPL) and terrain profiling.
+- **Physics Core (WASM)**: High-speed, high-fidelity ITM implementation running directly in the browser for real-time coverage maps and link analysis.
+- **RF Engine (Python)**: FastAPI service handling backend tasks, long-running simulations (Viewshed, Optimization), and providing traditional propagation models (Bullington, Hata).
 - **RF Worker**: Celery-based background worker for long-running tasks like Viewshed Analysis and Site Optimization.
 - **OpenTopoData**: Self-hosted elevation API providing geodetic data without external requests or rate limits.
 - **Redis**: High-speed caching layer for terrain and analysis results.

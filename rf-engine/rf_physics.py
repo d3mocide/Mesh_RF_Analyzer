@@ -145,8 +145,8 @@ def calculate_path_loss(dist_m, elevs, freq_mhz, tx_h, rx_h, model='bullington',
     if model == 'fspl':
         return fspl
         
-    # 3. Bullington (Terrain Helper - previously misnamed as ITM)
-    if model == 'bullington' or model == 'itm':
+    # 3. Bullington (Terrain-Aware Diffraction)
+    if model == 'bullington' or model == 'itm' or model == 'itm_wasm':
         # Bullington is Diffraction ADDED to FSPL
         diffraction = calculate_bullington_loss(dist_m, elevs, freq_mhz, tx_h, rx_h, k_factor, clutter_height)
         return fspl + diffraction

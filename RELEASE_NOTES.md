@@ -1,31 +1,24 @@
-# Release v1.11.0: The "Physics & Hardware" Update 🚀⚡
+# Release v1.12.0: The "Precision Engine" Update 🎯🏔️
 
-This release marks a significant step forward in RF modeling fidelity and user control. We've introduced asymmetric hardware configurations, integrated real-world cable loss calculations, and exposed advanced environmental parameters for the ITM engine.
+This release unifies our propagation modeling suite, bringing the high-precision Longley-Rice ITM WebAssembly engine to our point-to-point link analysis tool. We've also finalized our environmental physics engine, making the entire application fully "ground-aware."
 
 ## 🌟 Key Changes
 
-### 1. 📡 Asymmetric Node Configurations (Multi-Node A/B)
+### 1. 🏔️ Unified high-precision ITM (WASM)
 
-- **Independent Parameters**: You can now specify different antennas, heights, and power settings for **Node A** (Transmitter) and **Node B** (Receiver).
-- **Targeted Analysis**: Perfect for modeling links between a high-power base station and a low-power handheld device.
-- **Global Toggle**: Switch to "Global" mode to update both nodes simultaneously for rapid "what-if" scenarios.
+- **Engine Parity**: Point-to-point link analysis now uses the exact same C++ ITM implementation as our coverage maps. No more discrepancies between "The Map" and "The Link."
+- **WASM Default**: The simulation defaults to the highest fidelity model (`itm_wasm`) out of the box, ensuring professionals get the most accurate results immediately.
 
-### 2. 🔌 Cable Loss Calculator
+### 🌊 2. Full Environmental Awareness
 
-- **Real-World Fidelity**: Added a dynamic cable loss engine. Select your cable type (**LMR-400**, **RG-58**, etc.) and length to see its impact on your **Estimated ERP** in real-time.
-- **Hardware Integration**: Cable loss is now fully subtracted from TX power across the WASM and Python simulation engines.
+- **Ground Constants**: We've expanded our ground type library. You can now model links over **Sea Water, Fresh Water, Farmland,** and **Industrial** areas with accurate Dielectric Constant ($\epsilon$) and Conductivity ($\sigma$) values.
+- **Climate Integration**: Select your local climate zone (from Equatorial to Desert) to adjust the propagation physics for regional atmospheric conditions.
 
-### 3. � High-Fidelity Physics (ITM Environment)
+### 🔍 3. Refined Guidance & Logic
 
-- **Ground Parameters**: Choose your terrain type (Fresh Water, Desert, Average Ground) to fine-tune the ITM engine's dielectric and conductivity settings.
-- **Climate Zones**: Model your link's behavior across different global climates, from Equatorial to Maritime Temperate.
-- **Bullington Renaming**: The legacy Python-based terrain model has been renamed to **"Bullington (Diffraction)"** to better differentiate it from our upcoming high-fidelity WASM implementations.
-
-### 4. 🎨 Sidebar & UI Polish
-
-- **"LoRa Band" Workflow**: The radio settings have been streamlined into a sleek "LoRa Band" section, minimized by default to keep your workspace clean.
-- **Improved Spacing**: Removed "dead space" and fine-tuned padding across the entire sidebar for a tighter, more professional feel.
-- **Scroll Position Persistence**: Fixed the annoying sidebar scroll reset that occurred when changing radio presets.
+- **Interactive Model Guide**: We've re-written our propagation guide to help you choose the right model for the job.
+- **Intelligent Fallbacks**: The Python backend now understands `itm_wasm` requests and automatically provides the best terrain-aware alternative for server-side operations.
+- **Calibrated Default Mode**: All Site Finder and Optimization tools now default to the ITM engine for a consistent "Physics First" experience.
 
 ## 🚀 How to Upgrade
 
@@ -35,4 +28,4 @@ This release marks a significant step forward in RF modeling fidelity and user c
 
 ---
 
-_Thank you for helping us build the future of mesh RF analysis!_
+_The future of mesh RF analysis is about precision. Thank you for building it with us!_

@@ -42,7 +42,7 @@ export const calculateLink = async (nodeA, nodeB, freq, h1, h2, model, env, kFac
                 frequency_mhz: Number(freq),
                 tx_height: Number(h1),
                 rx_height: Number(h2),
-                model: model || 'bullington',
+                model: model || 'itm_wasm',
                 environment: env || 'suburban',
                 k_factor: Number(kFactor) || 1.333,
                 clutter_height: Number(clutterHeight) || 0

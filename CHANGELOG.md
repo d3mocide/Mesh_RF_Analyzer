@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.0] - 2026-02-08
+
+### Added
+
+- **Unified WASM Link Analysis**: Point-to-point link analysis now defaults to the high-precision **Longley-Rice ITM engine** via WebAssembly, ensuring perfect parity with coverage map results.
+- **Full Environmental Physics**: Both coverage maps and link analyses are now fully ground-aware.
+  - Added support for **Sea Water, Fresh Water, City/Industrial, Farmland**, and various soil types.
+  - Integrated **Climate Zone** selection into the sidebar for global simulation accuracy.
+- **ITM Model Unification**: Set `itm_wasm` as the standard default propagation model across the entire toolset.
+
+### Changed
+
+- **Propagation Model Guide**: Updated descriptions to clearly distinguish between **Statistical (Hata)**, **Terrain-Aware (Bullington)**, and **Physical (ITM)** models.
+- **Engine Aliasing**: Updated the Python backend to support `itm_wasm` aliases, providing high-fidelity terrain fallback when server-side processing is requested.
+- **Ground Type Expansion**: `RFContext` now exports a comprehensive set of dielectric constant and conductivity value pairs for all supported ground types.
+
+### Fixed
+
+- **WASM Parameter Sync**: Resolved a bug where Link Analysis would use hardcoded "Average Ground" values even when specialized ground types were selected in the sidebar.
+- **Model Default Inconsistency**: Ensured all tools (Site Finder, Multi-Site, Coverage) default to the ITM (WASM) engine for a "Physics First" user experience.
+
 ## [1.11.0] - 2026-02-08
 
 ### Added

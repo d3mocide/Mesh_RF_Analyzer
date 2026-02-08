@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { useMapEvents, Marker, Polyline, Popup, Polygon } from 'react-leaflet';
 import L from 'leaflet';
-import { useRF } from '../../context/RFContext';
+import { useRF, GROUND_TYPES } from '../../context/RFContext';
 import { DEVICE_PRESETS } from '../../data/presets';
 import { calculateLinkBudget, calculateFresnelRadius, calculateFresnelPolygon, analyzeLinkProfile, calculateBullingtonDiffraction } from '../../utils/rfMath';
 import { fetchElevationPath } from '../../utils/elevation';
@@ -32,9 +32,9 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
         txPower: proxyTx, antennaGain: proxyGain, // we ignore proxies for calc
         freq, sf, bw, cableLoss, antennaHeight,
         kFactor, clutterHeight, recalcTimestamp,
-        editMode, setEditMode, nodeConfigs, fadeMargin
+        editMode, setEditMode, nodeConfigs, fadeMargin,
+        groundType, climate
     } = useRF();
-
     // Refs for Manual Update Mode
     const configRef = useRef({ nodeConfigs, freq, kFactor, clutterHeight });
 
@@ -77,7 +77,7 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
         const h1 = parseFloat(currentConfig.nodeConfigs.A.antennaHeight);
         const h2 = parseFloat(currentConfig.nodeConfigs.B.antennaHeight);
         const currentFreq = currentConfig.freq;
-        const currentModel = propagationSettings?.model?.toLowerCase() || 'bullington';
+        const currentModel = propagationSettings?.model?.toLowerCase() || 'itm_wasm';
         const currentEnv = propagationSettings?.environment || 'suburban';
 
         // Parallel fetch: Elevation for profile/chart, and Path Loss from Backend
@@ -97,16 +97,16 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
                     const totalDistMeters = profile[profile.length - 1].distance * 1000;
                     const stepSize = totalDistMeters / (profile.length - 1);
                     
+                    const ground = GROUND_TYPES[groundType] || GROUND_TYPES['Average Ground'];
                     const loss = await calculateITM({
                         elevationProfile: elevationData,
                         stepSizeMeters: stepSize,
                         frequencyMHz: currentFreq,
                         txHeightM: h1,
                         rxHeightM: h2,
-                        // Use defaults or pull from context if we had them here
-                        groundEpsilon: 15.0,
-                        groundSigma: 0.005,
-                        climate: 5
+                        groundEpsilon: ground.epsilon,
+                        groundSigma: ground.sigma,
+                        climate: climate
                     });
                     
                     if (loss && loss !== Infinity) {

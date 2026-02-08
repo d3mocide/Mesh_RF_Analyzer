@@ -224,7 +224,7 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
                                 <strong style={{ color: '#00f2ff' }}>Okumura-Hata:</strong> Statistical model based on city measurements. Accounts for clutter and building density.
                             </div>
                             <div style={{ marginBottom: '12px' }}>
-                                <strong style={{ color: '#00f2ff' }}>Bullington (Legacy):</strong> Fast, terrain-aware diffraction model (formerly Python ITM). Good for general estimates.
+                                <strong style={{ color: '#00f2ff' }}>Bullington:</strong> Primary terrain-aware model for terrestrial links. Accounts for diffraction over hills.
                             </div>
                         </div>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', color: '#bbb' }}>
@@ -266,7 +266,7 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
                                     <span style={{ color: '#00f2ff', fontWeight: '600' }}>Statistical (Hata)</span> ignores terrain and assumes flat ground. This results in heavy signal penalties for high-elevation links.
                                 </div>
                                 <div style={{ color: '#ccc' }}>
-                                    <span style={{ color: '#00ff41', fontWeight: '600' }}>Terrain (Bullington)</span> accounts for hills and clear line-of-sight, providing accurate high-performance predictions for elevated antennas.
+                                    <span style={{ color: '#00ff41', fontWeight: '600' }}>Terrain (Bullington)</span> accounts for hills and clear line-of-sight, providing accurate high-performance predictions for Mesh nodes.
                                 </div>
                             </div>
                         </div>
