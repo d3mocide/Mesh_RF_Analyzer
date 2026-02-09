@@ -1,16 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRF } from '../../context/RFContext';
 import { fetchElevationPath } from '../../utils/elevation';
-import { analyzeLinkProfile, calculateLinkBudget } from '../../utils/rfMath';
+import { analyzeLinkProfile, calculateLinkBudget, calculateBullingtonDiffraction } from '../../utils/rfMath';
+import { DEVICE_PRESETS } from '../../data/presets';
 
 const BatchProcessing = () => {
     const {
         batchNodes, setBatchNodes,
         setShowBatchPanel,
-        freq, antennaHeight, antennaGain,
-        txPower, cableLoss,
+        freq, nodeConfigs,
         kFactor, clutterHeight,
-        sf, bw,
+        sf, bw, fadeMargin,
         isMobile, sidebarIsOpen
     } = useRF();
 
@@ -198,31 +198,41 @@ const BatchProcessing = () => {
                                         );
                                         
                                         if (profile) {
+                                            const configA = nodeConfigs.A;
+                                            const configB = nodeConfigs.B;
+
                                             const analysis = analyzeLinkProfile(
-                                                profile, 
-                                                freq, 
-                                                antennaHeight, 
-                                                antennaHeight,
+                                                profile,
+                                                freq,
+                                                configA.antennaHeight,
+                                                configB.antennaHeight,
                                                 kFactor,
                                                 clutterHeight
                                             );
-                                            
+
                                             const distKm = profile[profile.length-1].distance;
-                                            
-                                            // Link Budget
+
+                                            // Calculate Bullington diffraction for terrain-aware path loss
+                                            const diffraction = analysis.profileWithStats
+                                                ? calculateBullingtonDiffraction(analysis.profileWithStats, freq, configA.antennaHeight, configB.antennaHeight)
+                                                : 0;
+
+                                            // Link Budget with per-node params and terrain diffraction
                                             const budget = calculateLinkBudget({
-                                                txPower, 
-                                                txGain: antennaGain, 
-                                                txLoss: cableLoss,
-                                                rxGain: antennaGain, 
-                                                rxLoss: cableLoss,
-                                                distanceKm: distKm, 
+                                                txPower: configA.txPower,
+                                                txGain: configA.antennaGain,
+                                                txLoss: DEVICE_PRESETS[configA.device]?.loss || 0,
+                                                rxGain: configB.antennaGain,
+                                                rxLoss: DEVICE_PRESETS[configB.device]?.loss || 0,
+                                                distanceKm: distKm,
                                                 freqMHz: freq,
-                                                sf, bw
+                                                sf, bw,
+                                                excessLoss: diffraction,
+                                                fadeMargin: fadeMargin,
                                             });
-                                            
+
                                             const status = analysis.isObstructed ? 'OBSTRUCTED' : (budget.margin > 10 ? 'GOOD' : 'MARGINAL');
-                                            
+
                                             csvContent += `${n1.name},${n2.name},${distKm.toFixed(3)},${status},${analysis.linkQuality},${budget.margin},${analysis.minClearance}\n`;
                                         }
                                     } catch (e) {

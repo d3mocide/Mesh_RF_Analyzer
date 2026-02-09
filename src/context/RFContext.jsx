@@ -5,6 +5,7 @@ import {
   ANTENNA_PRESETS,
   CABLE_TYPES,
 } from "../data/presets";
+import { calculateLoRaSensitivity } from "../utils/rfMath";
 
 // ITM Environment Constants
 export const GROUND_TYPES = {
@@ -291,25 +292,7 @@ export const RFProvider = ({ children }) => {
       return parseFloat(antennaHeight) || 0; // State is always in Meters
     },
     calculateSensitivity: () => {
-      // LoRa Sensitivity Estimation
-      // S = -174 + 10log10(BW) + NF + SNR_limit
-      // NF ~ 6dB typically
-      const bwHz = (bw || 125) * 1000;
-      const noiseFloor = -174 + 10 * Math.log10(bwHz);
-      const nf = 6;
-
-      // SNR Limits approx (Semtech datasheets)
-      const snrLimits = {
-        7: -7.5,
-        8: -10,
-        9: -12.5,
-        10: -15,
-        11: -17.5,
-        12: -20,
-      };
-      const snrLimit = snrLimits[sf] || -20;
-
-      return noiseFloor + nf + snrLimit;
+      return calculateLoRaSensitivity(sf, bw);
     },
   };
 

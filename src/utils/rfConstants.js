@@ -30,10 +30,17 @@ export const RF_CONSTANTS = {
     }
   },
 
-  // LoRa / Hardware Constants
+  // LoRa / Hardware Constants (Semtech SX1262 datasheet, power-saving RX mode)
   LORA: {
-    BASE_SENSITIVITY_SF7_125KHZ: -123, // dBm
-    SF_GAIN_PER_STEP: 2.5, // dB
+    // Per-SF sensitivity at 125kHz BW (dBm) - SX1262 datasheet Table 3-2
+    SENSITIVITY_125KHZ: {
+      7: -124,
+      8: -127,
+      9: -130,
+      10: -133,
+      11: -135.5,
+      12: -137,
+    },
     THERMAL_NOISE_DENSITY: -174, // dBm/Hz
     REF_BW_KHZ: 125,
     REF_SF: 7,

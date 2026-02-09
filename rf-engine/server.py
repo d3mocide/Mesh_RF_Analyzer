@@ -66,11 +66,10 @@ def calculate_link_endpoint(req: LinkRequest):
     # Calculate Path Loss (ITM or FSPL)
     # Calculate Path Loss (Generic Dispatcher)
     path_loss_db = rf_physics.calculate_path_loss(
-        dist_m, 
-        elevs, 
-        req.frequency_mhz, 
-        req.tx_height, 
-        req.rx_height,
+        dist_m,
+        elevs,
+        req.frequency_mhz,
+        req.tx_height,
         req.rx_height,
         model=req.model,
         environment=req.environment,

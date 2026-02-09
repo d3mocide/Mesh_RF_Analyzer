@@ -13,7 +13,7 @@ import L from "leaflet";
 import LinkLayer from "./LinkLayer";
 import LinkAnalysisPanel from "./LinkAnalysisPanel";
 import OptimizationLayer from "./OptimizationLayer";
-import { useRF } from "../../context/RFContext";
+import { useRF, GROUND_TYPES } from "../../context/RFContext";
 import { calculateLinkBudget } from "../../utils/rfMath";
 import { DEVICE_PRESETS } from "../../data/presets";
 import * as turf from "@turf/turf";
@@ -140,7 +140,9 @@ const MapComponent = () => {
     getAntennaHeightMeters,
     calculateSensitivity,
     rxHeight,
-    fadeMargin
+    fadeMargin,
+    groundType,
+    climate
   } = useRF();
 
   // Wasm Viewshed Tool Hook
@@ -223,18 +225,22 @@ const MapComponent = () => {
         ? calculateSensitivity()
         : -126;
 
+      const ground = GROUND_TYPES[groundType] || GROUND_TYPES['Average Ground'];
       const rfParams = {
         freq,
         txPower: proxyTx,
         txGain: proxyGain,
-        txLoss: cableLoss, // Task 1.1: Use calculated cable loss
-        rxLoss: 0, // Default 0 for coverage map until Cable Calculator (Task 1.5)
+        txLoss: cableLoss,
+        rxLoss: 0,
         rxGain: nodeConfigs.B.antennaGain || 2.15,
         rxSensitivity: currentSensitivity,
         bw,
         sf,
         cr,
         rxHeight,
+        epsilon: ground.epsilon,
+        sigma: ground.sigma,
+        climate: climate,
       };
       console.log(
         `[RF Recalc] Height: ${currentHeight.toFixed(2)}m, Params:`,
@@ -515,10 +521,13 @@ const MapComponent = () => {
             cr,
             antennaHeight,
             getAntennaHeightMeters,
+            calculateSensitivity,
             rxHeight,
-            txLoss: cableLoss, // Task 1.1
+            txLoss: cableLoss,
             rxLoss: 0,
             rxAntennaGain: nodeConfigs.B.antennaGain,
+            groundType,
+            climate,
           }}
         />
         <TileLayer
@@ -618,16 +627,22 @@ const MapComponent = () => {
                     const currentSensitivity = calculateSensitivity
                       ? calculateSensitivity()
                       : -126;
+                    const dragGround = GROUND_TYPES[groundType] || GROUND_TYPES['Average Ground'];
                     const rfParams = {
                       freq,
                       txPower: proxyTx,
                       txGain: proxyGain,
-                      rxGain: 2.15,
+                      txLoss: cableLoss,
+                      rxLoss: 0,
+                      rxGain: nodeConfigs.B.antennaGain || 2.15,
                       rxSensitivity: currentSensitivity,
                       bw,
                       sf,
                       cr,
                       rxHeight,
+                      epsilon: dragGround.epsilon,
+                      sigma: dragGround.sigma,
+                      climate: climate,
                     };
 
                     runRFAnalysis(lat, lng, h, 25000, rfParams);

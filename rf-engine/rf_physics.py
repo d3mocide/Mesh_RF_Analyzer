@@ -140,7 +140,7 @@ def calculate_path_loss(dist_m, elevs, freq_mhz, tx_h, rx_h, model='bullington',
         return calculate_hata_loss(dist_m, freq_mhz, tx_h, rx_h, environment)
         
     # 2. Free Space (FSPL) - implicitly used as base for others or explicit
-    fspl = 20 * math.log10(dist_km) + 20 * math.log10(freq_mhz) + 32.44
+    fspl = 20 * math.log10(dist_km) + 20 * math.log10(freq_mhz) + 32.45
     
     if model == 'fspl':
         return fspl

@@ -9,8 +9,8 @@ import { RF_CONSTANTS } from "./rfConstants";
  */
 export const calculateFSPL = (distanceKm, freqMHz) => {
   if (distanceKm <= 0) return 0;
-  // FSPL(dB) = 20log10(d) + 20log10(f) + 32.44
-  return 20 * Math.log10(distanceKm) + 20 * Math.log10(freqMHz) + 32.44;
+  // FSPL(dB) = 20log10(d) + 20log10(f) + 32.45  (ITU-R P.525-4)
+  return 20 * Math.log10(distanceKm) + 20 * Math.log10(freqMHz) + 32.45;
 };
 
 /**
@@ -36,19 +36,36 @@ export const calculateFresnelRadius = (
 };
 
 /**
+ * Calculate LoRa Receiver Sensitivity (canonical, SX1262 datasheet)
+ * Uses per-SF lookup table at 125kHz, scaled for actual bandwidth.
+ * @param {number} sf - Spreading Factor (7-12)
+ * @param {number} bw - Bandwidth in kHz
+ * @returns {number} Sensitivity in dBm
+ */
+export const calculateLoRaSensitivity = (sf, bw) => {
+  const table = RF_CONSTANTS.LORA.SENSITIVITY_125KHZ;
+  const baseSensitivity = table[sf] !== undefined ? table[sf] : table[7];
+
+  // Scale for bandwidth: 10*log10(BW/125) -- doubling BW worsens by 3 dB
+  const bwFactor = 10 * Math.log10((bw || 125) / RF_CONSTANTS.LORA.REF_BW_KHZ);
+
+  return parseFloat((baseSensitivity + bwFactor).toFixed(1));
+};
+
+/**
  * Calculate Link Budget
  * @param {Object} params
  * @param {number} params.txPower - TX Power in dBm
  * @param {number} params.txGain - TX Antenna Gain in dBi
  * @param {number} params.txLoss - TX Cable Loss in dB
- * @param {number} params.rxGain - RX Antenna Gain in dBi (Assuming symmetric for now or user defined)
+ * @param {number} params.rxGain - RX Antenna Gain in dBi
  * @param {number} params.rxLoss - RX Cable Loss in dB
  * @param {number} params.distanceKm - Distance in Km
  * @param {number} params.freqMHz - Frequency in MHz
  * @param {number} params.sf - Spreading Factor (for sensitivity)
  * @param {number} params.bw - Bandwidth in kHz (for sensitivity)
- * @param {number} [params.pathLossOverride=null] - Optional override for path loss in dB. If provided, FSPL is not calculated.
- * @returns {Object} { rssi, fspl, snrLimit, linkMargin }
+ * @param {number} [params.pathLossOverride=null] - Optional override for path loss in dB
+ * @returns {Object} { rssi, fspl, sensitivity, margin }
  */
 export const calculateLinkBudget = ({
   txPower,
@@ -67,29 +84,10 @@ export const calculateLinkBudget = ({
 }) => {
   const fspl = pathLossOverride !== null ? pathLossOverride : calculateFSPL(distanceKm, freqMHz);
 
-  // Estimated RSSI at receiver
   // RSSI = Ptx + Gtx - Ltx - PathLoss - ExcessLoss - FadeMargin + Grx - Lrx
   const rssi = txPower + txGain - txLoss - fspl - excessLoss - fadeMargin + rxGain - rxLoss;
 
-  // Receiver Sensitivity Calculation (Semtech SX1262 approx)
-  // S = -174 + 10log10(BW) + NF + SNR_limit
-  // Standard LoRa sensitivity approximation:
-  // SF7/125kHz ~ -123dBm
-  // Rule of thumb: Higher SF = Lower (better) sensitivity. Double BW = 3dB worse.
-
-  // Base sensitivity for SF7, 125kHz
-  let baseSensitivity = RF_CONSTANTS.LORA.BASE_SENSITIVITY_SF7_125KHZ;
-
-  // Adjust for Bandwidth: 10 * log10(BW_meas / BW_ref)
-  // If BW goes 125 -> 250, noise floor rises by 3dB, sensitivity worsens by 3dB
-  const bwFactor = 10 * Math.log10(bw / RF_CONSTANTS.LORA.REF_BW_KHZ);
-
-  // Adjust for Spreading Factor: Each step adds ~2.5dB of process gain
-  // SF7 is base. SF12 is 5 steps higher.
-  const sfFactor = (sf - RF_CONSTANTS.LORA.REF_SF) * -RF_CONSTANTS.LORA.SF_GAIN_PER_STEP;
-
-  const sensitiveLimit = baseSensitivity + bwFactor + sfFactor;
-
+  const sensitiveLimit = calculateLoRaSensitivity(sf, bw);
   const linkMargin = rssi - sensitiveLimit;
 
   return {
