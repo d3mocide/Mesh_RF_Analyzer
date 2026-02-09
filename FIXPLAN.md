@@ -1,7 +1,9 @@
-# v1.11.0 Fix Plan — 5 Remaining Issues
+# v1.12.0 Fix Plan — 6 Remaining Issues
 
-These are the remaining issues found during post-implementation verification of v1.11.0.
+These are the remaining issues found during post-implementation verification of v1.12.0.
 Each task is self-contained with exact file paths, line numbers, before/after code, and acceptance criteria.
+
+**Previous**: v1.12.0 fixed TASK 4 (LinkLayer ground params). Tasks 1, 2, 3, 5 still open. Two new issues found.
 
 ---
 
@@ -14,13 +16,18 @@ Each task is self-contained with exact file paths, line numbers, before/after co
 ### Problem
 
 `req.rx_height` is passed twice as a positional argument to `calculate_path_loss()`.
-The 6th positional arg fills `rx_h` (correct), then the 7th positional arg fills `model`
+The 5th positional arg fills `rx_h` (correct), then the 6th positional arg fills `model`
 with a float (wrong). Then `model=req.model` is also passed as a keyword argument for
 the same parameter. Python raises:
 `TypeError: calculate_path_loss() got multiple values for argument 'model'`
 
 This crashes the Bullington, Hata, and FSPL models. Only the WASM ITM path works because
 it skips the Python backend entirely.
+
+### Function signature (rf_physics.py line 130)
+```python
+def calculate_path_loss(dist_m, elevs, freq_mhz, tx_h, rx_h, model='bullington', environment='suburban', k_factor=1.333, clutter_height=0.0):
+```
 
 ### Current code (server.py lines 68-79)
 ```python
@@ -30,7 +37,7 @@ path_loss_db = rf_physics.calculate_path_loss(
     req.frequency_mhz,
     req.tx_height,
     req.rx_height,
-    req.rx_height,          # ← DELETE THIS LINE (duplicate)
+    req.rx_height,          # ← DELETE THIS LINE (duplicate — fills 'model' positionally)
     model=req.model,
     environment=req.environment,
     k_factor=req.k_factor,
@@ -56,7 +63,7 @@ path_loss_db = rf_physics.calculate_path_loss(
 
 ### Acceptance
 - The `/calculate-link` endpoint returns valid JSON with `path_loss_db` instead of crashing
-- All three Python models (bullington, hata, fspl) return results
+- All three Python models (bullington, hata, fspl) return numeric results
 - No change to the function signature in `rf_physics.py`
 
 ---
@@ -65,7 +72,7 @@ path_loss_db = rf_physics.calculate_path_loss(
 
 **Severity**: HIGH — dragging the RF Coverage marker reverts to old hardcoded values
 **File**: `src/components/Map/MapContainer.jsx`
-**Lines**: 596-640 (RF Coverage marker drag handler)
+**Lines**: 602-634 (RF Coverage marker drag handler)
 
 ### Problem
 
@@ -74,17 +81,17 @@ at line 602 rebuilds `rfParams` with all the old hardcoded values from before v1
 
 - `rxGain: 2.15` — ignores Node B antenna gain (line 625)
 - No `txLoss` / `rxLoss` — cable losses not subtracted
-- No `epsilon` / `sigma` / `climate` — ground params not passed
+- No `epsilon` / `sigma` / `climate` — ground params not passed to WASM
 - `antennaHeight || 5.0` — should use `getAntennaHeightMeters()` (line 614)
 
 The initial click handler (`CoverageClickHandler.jsx`) and the recalc path
-(`MapContainer.jsx:226-238`) are both correctly wired. This drag handler was missed.
+(`MapContainer.jsx:226-238`) are both correctly wired. Only this drag handler was missed.
 
 ### Current code (MapContainer.jsx lines 612-633)
 ```javascript
 .then((data) => {
     const elevation = data.elevation || 0;
-    const h = antennaHeight || 5.0; // Keep relative height from ground
+    const h = antennaHeight || 5.0;
 
     setRfObserver({ lat, lng, height: h });
 
@@ -109,24 +116,23 @@ The initial click handler (`CoverageClickHandler.jsx`) and the recalc path
 
 ### Fix
 
-First, add `groundType`, `climate`, and `GROUND_TYPES` to MapContainer's imports and
-context destructuring. MapContainer already destructures from `useRF()` at line 120.
-Add these to the existing destructuring:
-
+**Step 1**: Add `groundType` and `climate` to the `useRF()` destructuring at line 120-143.
+Currently it already has `getAntennaHeightMeters`, `cableLoss`, `nodeConfigs`. Just add:
 ```javascript
-// Add to the useRF() destructuring (around line 120-143):
+// Add to the existing useRF() destructuring block (around line 120-143):
 groundType,
 climate,
 ```
 
-Add at the top of MapContainer.jsx (with the other imports):
+**Step 2**: Add GROUND_TYPES import. At the top of MapContainer.jsx, change the existing import:
 ```javascript
-import { GROUND_TYPES } from '../../context/RFContext';
+// Change line 16 from:
+import { useRF } from "../../context/RFContext";
+// To:
+import { useRF, GROUND_TYPES } from "../../context/RFContext";
 ```
 
-Then replace the drag handler's `.then((data) => { ... })` block with code that mirrors
-the recalc path. The fixed version:
-
+**Step 3**: Replace the drag handler `.then((data) => { ... })` block (lines 612-633) with:
 ```javascript
 .then((data) => {
     const elevation = data.elevation || 0;
@@ -163,11 +169,10 @@ the recalc path. The fixed version:
   });
 ```
 
-Also add `groundType`, `climate` to the recalc path rfParams (lines 226-238) since
-it's also missing ground params:
-
+**Step 4**: Also add ground params to the recalc path (lines 226-238) since it's also missing
+them. Before the `rfParams` declaration at line 226, add the ground lookup. The recalc block
+should become:
 ```javascript
-// Add to the existing recalc rfParams block at line 226:
 const ground = GROUND_TYPES[groundType] || GROUND_TYPES['Average Ground'];
 
 const rfParams = {
@@ -189,7 +194,7 @@ const rfParams = {
 ```
 
 ### Acceptance
-- Dragging the RF Coverage marker produces the same results as clicking "Update Calculation"
+- Dragging the RF Coverage marker produces the same results as clicking a fresh point
 - `rxGain` reflects Node B antenna setting, not hardcoded 2.15
 - Cable loss is subtracted via `txLoss`
 - Ground type and climate are passed through to WASM
@@ -202,19 +207,19 @@ const rfParams = {
 
 **Severity**: LOW — dead code, no functional impact
 **File**: `src/components/Map/LinkLayer.jsx`
-**Lines**: 281-289
+**Lines**: 281-290
 
 ### Problem
 
 The diffraction loss block checks `propagationSettings?.model === 'Hata'` (capital H),
-but all model values are now lowercase (`'hata'`, `'bullington'`, `'itm_wasm'`, `'fspl'`).
+but all model values are lowercase (`'hata'`, `'bullington'`, `'itm_wasm'`, `'fspl'`).
 This condition **never matches**, so `diffractionLoss` is always 0.
 
-This is actually correct behavior — every backend model already includes its own loss
-in `pathLossOverride`, so subtracting a separate diffraction value would double-count.
-But the dead code should be cleaned up.
+This is correct behavior — the path loss models already include terrain effects in their
+`pathLossOverride`, so a separate diffraction subtraction would double-count. The dead code
+should be removed for clarity.
 
-### Current code (LinkLayer.jsx lines 281-289)
+### Current code (LinkLayer.jsx lines 281-290)
 ```javascript
 // Calculate Diffraction Loss (Bullington) for visualization
 let diffractionLoss = 0;
@@ -228,19 +233,20 @@ if (propagationSettings?.model === 'Hata' && linkStats.profileWithStats) {
 }
 ```
 
-### Fix
-Remove the entire block (lines 281-289) and the reference to `diffractionLoss` in
-the margin calculation. Replace lines 281-289 with just:
+And at line ~306:
 ```javascript
-let diffractionLoss = 0;
+const m = budget.margin - diffractionLoss;
 ```
 
-Keep the variable declaration since it's used at line 306:
-`const m = budget.margin - diffractionLoss;`
+### Fix
+Remove the entire block (lines 281-290). Simplify the margin calculation:
 
-With `diffractionLoss` always being 0, this simplifies to `budget.margin`, which is correct.
+Replace lines 281-290 and the margin line with:
+```javascript
+// diffractionLoss block removed — all models include terrain effects in pathLossOverride
+```
 
-Alternatively, for a cleaner fix, also simplify line 306 from:
+And change the margin line from:
 ```javascript
 const m = budget.margin - diffractionLoss;
 ```
@@ -248,11 +254,9 @@ to:
 ```javascript
 const m = budget.margin;
 ```
-and remove the `let diffractionLoss = 0;` line entirely. Also remove the unused
-`calculateBullingtonDiffraction` import if it's no longer used anywhere in the file.
 
-Check if `calculateBullingtonDiffraction` is used elsewhere in the file before removing
-the import. If it's only used in this dead block, remove it from the import at line 7.
+Also check if `calculateBullingtonDiffraction` is imported at the top of the file. If it's
+only used in this dead block, remove the import too.
 
 ### Acceptance
 - Dead `if ('Hata')` block removed
@@ -262,34 +266,23 @@ the import. If it's only used in this dead block, remove it from the import at l
 
 ---
 
-## TASK 4: Wire ground params into LinkLayer WASM ITM path (LOW)
+## TASK 4: Add groundType/climate to LinkLayer configRef (LOW)
 
-**Severity**: LOW — WASM ITM in Link Analysis uses default ground params instead of sidebar values
+**Severity**: LOW — stale closure risk, minor correctness issue
 **File**: `src/components/Map/LinkLayer.jsx`
-**Lines**: 31-48 (context destructuring and configRef), 96-106 (WASM ITM call)
+**Lines**: 39, 47-48
 
 ### Problem
 
-The WASM ITM calculation in LinkLayer hardcodes `groundEpsilon: 15.0`, `groundSigma: 0.005`,
-`climate: 5` instead of reading from the sidebar's Ground Type and Climate Zone controls.
+v1.12.0 correctly added `groundType` and `climate` to the `useRF()` destructuring (line 36)
+and uses them in the WASM ITM call (lines 100-109). However, they read from the closure
+instead of from `configRef.current`.
 
-The RF Coverage tool correctly reads these from `rfContext`, but the Link Analysis WASM
-path doesn't have access to `groundType` or `climate` because they aren't destructured
-from `useRF()` or tracked in `configRef.current`.
+The established pattern for `kFactor` and `clutterHeight` uses a `configRef` + `useEffect`
+to avoid stale closures in the `runAnalysis` useCallback. `groundType` and `climate` should
+follow the same pattern for consistency and correctness.
 
-### Current code
-
-At line 31-35:
-```javascript
-const {
-    txPower: proxyTx, antennaGain: proxyGain,
-    freq, sf, bw, cableLoss, antennaHeight,
-    kFactor, clutterHeight, recalcTimestamp,
-    editMode, setEditMode, nodeConfigs, fadeMargin
-} = useRF();
-```
-
-At line 38-48 (configRef):
+### Current code (LinkLayer.jsx lines 39, 47-49)
 ```javascript
 const configRef = useRef({ nodeConfigs, freq, kFactor, clutterHeight });
 // ...
@@ -298,73 +291,54 @@ useEffect(() => {
 }, [nodeConfigs, freq, kFactor, clutterHeight]);
 ```
 
-At lines 96-106 (WASM ITM call):
+And at lines 100-103 (inside runAnalysis callback):
 ```javascript
-const loss = await calculateITM({
-    elevationProfile: elevationData,
-    stepSizeMeters: stepSize,
-    frequencyMHz: currentFreq,
-    txHeightM: h1,
-    rxHeightM: h2,
-    groundEpsilon: 15.0,    // hardcoded
-    groundSigma: 0.005,     // hardcoded
-    climate: 5              // hardcoded
-});
+const ground = GROUND_TYPES[groundType] || GROUND_TYPES['Average Ground'];
+// ...
+    groundEpsilon: ground.epsilon,
+    groundSigma: ground.sigma,
+    climate: climate
 ```
 
 ### Fix
 
-1. Add `groundType` and `climate` to the `useRF()` destructuring at line 31:
-```javascript
-const {
-    txPower: proxyTx, antennaGain: proxyGain,
-    freq, sf, bw, cableLoss, antennaHeight,
-    kFactor, clutterHeight, recalcTimestamp,
-    editMode, setEditMode, nodeConfigs, fadeMargin,
-    groundType, climate
-} = useRF();
-```
-
-2. Add `GROUND_TYPES` import at the top of the file (line 5, after the existing RFContext import):
-```javascript
-import { useRF } from '../../context/RFContext';
-import { GROUND_TYPES } from '../../context/RFContext';
-```
-Or combine into one import:
-```javascript
-import { useRF, GROUND_TYPES } from '../../context/RFContext';
-```
-
-3. Add `groundType` and `climate` to `configRef` at line 38 and 47-48:
+**Step 1**: Add `groundType` and `climate` to `configRef` initial value (line 39):
 ```javascript
 const configRef = useRef({ nodeConfigs, freq, kFactor, clutterHeight, groundType, climate });
+```
 
+**Step 2**: Add to the `useEffect` that keeps configRef current (lines 47-49):
+```javascript
 useEffect(() => {
     configRef.current = { nodeConfigs, freq, kFactor, clutterHeight, groundType, climate };
 }, [nodeConfigs, freq, kFactor, clutterHeight, groundType, climate]);
 ```
 
-4. Update the WASM ITM call at lines 96-106 to use the config values:
+**Step 3**: Update the WASM ITM call (around line 100) to read from `currentConfig` instead
+of the closure. The `runAnalysis` callback already does
+`const currentConfig = configRef.current;` earlier. Change:
+```javascript
+const ground = GROUND_TYPES[groundType] || GROUND_TYPES['Average Ground'];
+```
+to:
 ```javascript
 const ground = GROUND_TYPES[currentConfig.groundType] || GROUND_TYPES['Average Ground'];
+```
 
-const loss = await calculateITM({
-    elevationProfile: elevationData,
-    stepSizeMeters: stepSize,
-    frequencyMHz: currentFreq,
-    txHeightM: h1,
-    rxHeightM: h2,
-    groundEpsilon: ground.epsilon,
-    groundSigma: ground.sigma,
-    climate: currentConfig.climate || 5
-});
+And change:
+```javascript
+climate: climate
+```
+to:
+```javascript
+climate: currentConfig.climate
 ```
 
 ### Acceptance
-- Changing Ground Type dropdown in sidebar affects WASM ITM Link Analysis results
-- Changing Climate Zone dropdown affects WASM ITM Link Analysis results
-- Default behavior (Average Ground, Continental Temperate) produces same results as before
-- RF Coverage tool is unaffected
+- `groundType` and `climate` in configRef initial value and useEffect
+- WASM ITM call reads from `currentConfig.groundType` and `currentConfig.climate`
+- Changing ground type/climate updates link analysis correctly
+- No stale values after rapid sidebar changes
 
 ---
 
@@ -375,7 +349,9 @@ const loss = await calculateITM({
 **Line**: 414
 
 ### Problem
-The model dropdown fallback still references the old `"itm"` value.
+The model dropdown fallback still references the old `"itm"` value. The dropdown options
+use `"itm_wasm"` as the value for the ITM model (line 418), but the fallback says `"itm"`.
+If `propagationSettings.model` is ever undefined, the dropdown would show no selection.
 
 ### Current code
 ```javascript
@@ -393,15 +369,57 @@ value={propagationSettings.model || "itm_wasm"}
 
 ---
 
-## Task Dependency Graph
+## TASK 6: Fix rfService.js misleading default (COSMETIC)
+
+**Severity**: COSMETIC
+**File**: `src/utils/rfService.js`
+**Line**: 50
+
+### Problem
+v1.12.0 changed the default model from `'bullington'` to `'itm_wasm'`:
+```javascript
+model: model || 'itm_wasm',
+```
+
+This function (`calculateLink`) sends requests to the Python backend. When `itm_wasm` arrives
+at the Python backend, `rf_physics.py:149` maps it to Bullington:
+```python
+if model == 'bullington' or model == 'itm' or model == 'itm_wasm':
+```
+
+So the name `itm_wasm` is misleading — the Python backend runs Bullington, not WASM ITM.
+The default should honestly reflect what the backend actually executes.
+
+Note: This code path is only hit when LinkLayer calls the Python backend for non-WASM models.
+The WASM ITM path in LinkLayer (line 86) skips the backend entirely. So in practice,
+`'itm_wasm'` should never be sent to the backend. But if it is, the default should be honest.
+
+### Current code (rfService.js line 50)
+```javascript
+model: model || 'itm_wasm',
+```
+
+### Fix
+```javascript
+model: model || 'bullington',
+```
+
+### Acceptance
+- Default model sent to Python backend is `'bullington'`
+- No functional change (Bullington runs either way), but the name is honest
+
+---
+
+## Task Priority and Dependency
 
 ```
-TASK 1 (server.py crash)          — independent, do first (CRITICAL)
-TASK 2 (drag handler)             — independent (needs GROUND_TYPES import)
-TASK 3 (diffraction dead code)    — independent
-TASK 4 (LinkLayer ground params)  — independent (needs GROUND_TYPES import)
-TASK 5 (dropdown fallback)        — independent
+TASK 1 (server.py crash)        — CRITICAL — do first, 1 line delete
+TASK 2 (drag handler)           — HIGH     — needs GROUND_TYPES import + useRF additions
+TASK 3 (diffraction dead code)  — LOW      — independent, simple removal
+TASK 4 (configRef closure)      — LOW      — independent, 3 small edits in LinkLayer
+TASK 5 (dropdown fallback)      — COSMETIC — independent, 1 line change
+TASK 6 (rfService default)      — COSMETIC — independent, 1 line change
 ```
 
-All 5 tasks are independent and can be done in parallel or any order.
-**Task 1 should be done first** since it's a runtime crash affecting the API.
+All 6 tasks are independent and can be done in any order.
+**Task 1 should be done first** since it's a runtime crash affecting the entire Python API.
