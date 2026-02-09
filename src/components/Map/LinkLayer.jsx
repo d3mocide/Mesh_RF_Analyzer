@@ -4,7 +4,7 @@ import { useMapEvents, Marker, Polyline, Popup, Polygon } from 'react-leaflet';
 import L from 'leaflet';
 import { useRF, GROUND_TYPES } from '../../context/RFContext';
 import { DEVICE_PRESETS } from '../../data/presets';
-import { calculateLinkBudget, calculateFresnelRadius, calculateFresnelPolygon, analyzeLinkProfile, calculateBullingtonDiffraction } from '../../utils/rfMath';
+import { calculateLinkBudget, calculateFresnelRadius, calculateFresnelPolygon, analyzeLinkProfile } from '../../utils/rfMath';
 import { fetchElevationPath } from '../../utils/elevation';
 import { calculateLink } from '../../utils/rfService';
 import { useWasmITM } from '../../hooks/useWasmITM';
@@ -36,7 +36,7 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
         groundType, climate
     } = useRF();
     // Refs for Manual Update Mode
-    const configRef = useRef({ nodeConfigs, freq, kFactor, clutterHeight });
+    const configRef = useRef({ nodeConfigs, freq, kFactor, clutterHeight, groundType, climate });
 
     // Refs for direct visual manipulation
     const polylineRef = useRef(null);
@@ -45,8 +45,8 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
     const markerRefB = useRef(null);
 
     useEffect(() => {
-        configRef.current = { nodeConfigs, freq, kFactor, clutterHeight };
-    }, [nodeConfigs, freq, kFactor, clutterHeight]);
+        configRef.current = { nodeConfigs, freq, kFactor, clutterHeight, groundType, climate };
+    }, [nodeConfigs, freq, kFactor, clutterHeight, groundType, climate]);
 
     // Initialize WASM ITM Hook
     const { calculatePathLoss: calculateITM, isReady: itmReady } = useWasmITM();
@@ -97,7 +97,7 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
                     const totalDistMeters = profile[profile.length - 1].distance * 1000;
                     const stepSize = totalDistMeters / (profile.length - 1);
                     
-                    const ground = GROUND_TYPES[groundType] || GROUND_TYPES['Average Ground'];
+                    const ground = GROUND_TYPES[currentConfig.groundType] || GROUND_TYPES['Average Ground'];
                     const loss = await calculateITM({
                         elevationProfile: elevationData,
                         stepSizeMeters: stepSize,
@@ -106,7 +106,7 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
                         rxHeightM: h2,
                         groundEpsilon: ground.epsilon,
                         groundSigma: ground.sigma,
-                        climate: climate
+                        climate: currentConfig.climate
                     });
                     
                     if (loss && loss !== Infinity) {
@@ -278,16 +278,6 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
         fadeMargin
     });
     
-    // Calculate Diffraction Loss (Bullington) for visualization
-    let diffractionLoss = 0;
-    if (propagationSettings?.model === 'Hata' && linkStats.profileWithStats) {
-         diffractionLoss = calculateBullingtonDiffraction(
-            linkStats.profileWithStats, 
-            freq, 
-            configA.antennaHeight, 
-            configB.antennaHeight
-        );
-    }
 
     // Determine Color and Style
     // We used to ignore obstruction if using Hata, but user wants consistent "Red" if physically obstructed
@@ -304,7 +294,7 @@ const LinkLayer = ({ nodes, setNodes, linkStats, setLinkStats, setCoverageOverla
     } 
     // 2. Margin-based Coloring (Matches LinkAnalysisPanel.jsx)
     else {
-        const m = budget.margin - diffractionLoss; // Adjust margin by diffraction loss
+        const m = budget.margin;
         if (m >= 10) {
             finalColor = '#00ff41'; // Excellent +++
         } else if (m >= 5) {

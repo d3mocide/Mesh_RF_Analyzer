@@ -411,7 +411,7 @@ const LinkAnalysisPanel = ({ nodes, linkStats, budget, distance, units, propagat
                                  <select 
                                     id="prop-model"
                                     name="prop-model"
-                                    value={propagationSettings.model || "itm"}
+                                    value={propagationSettings.model || "itm_wasm"}
                                     onChange={(e) => setPropagationSettings(prev => ({ ...prev, model: e.target.value }))}
                                     style={{ background: '#222', color: '#00f2ff', border: '1px solid #444', padding: '4px', borderRadius: '4px', fontSize: '0.8em', fontWeight: 'bold' }}
                                  >
