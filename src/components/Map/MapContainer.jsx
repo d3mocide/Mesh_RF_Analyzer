@@ -359,20 +359,6 @@ const MapComponent = () => {
   // Prepare DeckGL Layers
   const deckLayers = [];
 
-  // Composite coverage from Site Analysis
-  if (compositeOverlay && compositeOverlay.image) {
-      const { image, bounds } = compositeOverlay;
-      // image is base64 data url from backend
-      deckLayers.push(
-          new WasmViewshedLayer({
-              id: 'site-analysis-composite',
-              image: image,
-              bounds: [bounds[1], bounds[0], bounds[3], bounds[2]], // [minLon, minLat, maxLon, maxLat]
-              opacity: 0.6,
-              pickable: false
-          })
-      );
-  }
 
   // Viewshed Layer (Only active in 'viewshed' mode)
   if (toolMode === "viewshed" && resultLayer && resultLayer.data) {

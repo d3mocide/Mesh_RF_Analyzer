@@ -15,6 +15,7 @@ precision highp float;
 uniform sampler2D bitmapTexture;
 uniform vec4 bounds;
 uniform float opacity;
+uniform bool showShadows;
 
 in vec2 vTexCoord;
 out vec4 fragColor;
@@ -32,7 +33,9 @@ void main() {
         fragColor = vec4(0.0, 1.0, 0.25, 0.5);
     } else {
         // Obstructed: Brand Purple (#a855f7) - Low opacity for "Dark Area" feel
-        fragColor = vec4(0.66, 0.33, 0.97, 0.3);
+        // If showShadows is false, use 0 opacity
+        float shadowAlpha = showShadows ? 0.3 : 0.0;
+        fragColor = vec4(0.66, 0.33, 0.97, shadowAlpha);
     }
 }
 `;
@@ -49,7 +52,8 @@ export default class WasmViewshedLayer extends BitmapLayer {
     const { bounds } = this.props;
     const uniforms = {
         bounds: bounds || [0, 0, 0, 0],
-        opacity: this.props.opacity !== undefined ? this.props.opacity : 1.0
+        opacity: this.props.opacity !== undefined ? this.props.opacity : 1.0,
+        showShadows: this.props.showShadows !== undefined ? this.props.showShadows : true
     };
     if (this.state.model && this.state.model.shaderInputs) {
       this.state.model.shaderInputs.setProps({ uniforms });
