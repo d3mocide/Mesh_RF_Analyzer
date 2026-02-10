@@ -1,6 +1,6 @@
 const API_URL = '/api';
 
-export const optimizeLocation = async (bounds, freq, height, weights) => {
+export const optimizeLocation = async (bounds, freq, txHeight, rxHeight, weights, kFactor, clutterHeight, existingNodes = []) => {
     // bounds: { _southWest: { lat, lng }, _northEast: { lat, lng } }
     const min_lat = bounds.getSouth();
     const max_lat = bounds.getNorth();
@@ -17,8 +17,13 @@ export const optimizeLocation = async (bounds, freq, height, weights) => {
                 max_lat: Number(max_lat),
                 max_lon: Number(max_lon),
                 frequency_mhz: Number(freq),
-                height_meters: Number(height),
-                weights: weights || { elevation: 0.5, prominence: 0.3, fresnel: 0.2 }
+                tx_height: Number(txHeight),
+                rx_height: Number(rxHeight || 2.0),
+                k_factor: Number(kFactor || 1.333),
+                clutter_height: Number(clutterHeight || 0),
+                return_heatmap: true,
+                weights: weights || { elevation: 0.5, prominence: 0.3, fresnel: 0.2 },
+                existing_nodes: existingNodes
             })
         });
         const initialData = await response.json();
@@ -52,5 +57,36 @@ export const calculateLink = async (nodeA, nodeB, freq, h1, h2, model, env, kFac
     } catch (error) {
         console.error("Link Calc Error:", error);
         throw error;
+    }
+};
+
+export const exportResults = async (locations, format = 'csv') => {
+    try {
+        const response = await fetch(`${API_URL}/export-results`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                locations,
+                format
+            })
+        });
+
+        if (!response.ok) throw new Error("Export failed");
+
+        // Trigger download
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `rf_scan_results.${format}`; // Server sets this too, but good fallback
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        return { status: 'success' };
+    } catch (error) {
+        console.error("Export Error:", error);
+        return { status: 'error', message: error.message };
     }
 };

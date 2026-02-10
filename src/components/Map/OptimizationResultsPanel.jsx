@@ -1,13 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+
+import L from 'leaflet';
 
 const OptimizationResultsPanel = ({ results, onClose, onCenter, onReset, onRecalculate }) => {
     const [isMinimized, setIsMinimized] = useState(false);
     const [showHelp, setShowHelp] = useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    
+    const panelRef = React.useRef(null);
 
     React.useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 768);
         window.addEventListener('resize', handleResize);
+        
+        // Prevent Map Interactions through Panel
+        if (panelRef.current) {
+            L.DomEvent.disableScrollPropagation(panelRef.current);
+            L.DomEvent.disableClickPropagation(panelRef.current);
+        }
+
         return () => window.removeEventListener('resize', handleResize);
     }, []);
     
@@ -37,7 +48,7 @@ const OptimizationResultsPanel = ({ results, onClose, onCenter, onReset, onRecal
     };
     
     return (
-        <div style={{ ...panelStyle }}>
+        <div ref={panelRef} style={{ ...panelStyle }}>
             {/* help slide-down - RE-INTEGRATED INTO PANEL */}
             {showHelp && (
                 <div style={{
@@ -67,15 +78,15 @@ const OptimizationResultsPanel = ({ results, onClose, onCenter, onReset, onRecal
                             <line x1="12" y1="16" x2="12" y2="12"></line>
                             <line x1="12" y1="8" x2="12.01" y2="8"></line>
                         </svg>
-                        Site Survey Guide
+                        Coverage Analysis Guide
                     </div>
                     <div style={{ color: '#ccc', marginBottom: '16px' }}>
-                        This tool identifies high-ground locations that maximize RF coverage potential based on the selected terrain and weights.
+                        This tool identifies optimal reception locations that maximize signal strength and line-of-sight based on your transmitter.
                     </div>
                     <ul style={{ paddingLeft: '20px', margin: '0 0 20px 0', color: '#bbb', flexGrow: 1 }}>
-                        <li style={{ marginBottom: '10px' }}><strong>Advanced Scoring:</strong> Sites are ranked using a composite score of elevation, prominence, and Fresnel clearance.</li>
-                        <li style={{ marginBottom: '10px' }}><strong>AMSL:</strong> Elevation is shown in meters Above Mean Sea Level (Terrain Height).</li>
-                        <li style={{ marginBottom: '10px' }}><strong>Interactive Scan:</strong> Drag the cyan corners on the map to re-run the scan on a new area instantly.</li>
+                        <li style={{ marginBottom: '10px' }}><strong>Signal Quality:</strong> Sites are ranked by Line-of-Sight, Fresnel Zone clearance, and Signal Strength.</li>
+                        <li style={{ marginBottom: '10px' }}><strong>Coverage Radius:</strong> Scanning a {(results?.[0]?.distance/1000 || 5).toFixed(1)}km radius from your TX.</li>
+                        <li style={{ marginBottom: '10px' }}><strong>Dynamic Re-scan:</strong> Drag the radius slider or click a new center to update coverage.</li>
                     </ul>
                     <button 
                         onClick={() => setShowHelp(false)}
@@ -133,7 +144,7 @@ const OptimizationResultsPanel = ({ results, onClose, onCenter, onReset, onRecal
                 }}
             >
                 <h3 style={{ margin: 0, fontSize: '1.2em', fontWeight: 600, color: '#00f2ff' }}>
-                    Top {results.length} Highest Points
+                    Top {results.length} Best Links
                 </h3>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div 
@@ -277,6 +288,45 @@ const OptimizationResultsPanel = ({ results, onClose, onCenter, onReset, onRecal
                 transition: 'opacity 0.2s',
                 flexShrink: 0
             }}>
+                 <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                    <button 
+                        onClick={() => {
+                            import('../../utils/rfService').then(({ exportResults }) => {
+                                exportResults(results, 'csv');
+                            });
+                        }}
+                        style={{
+                            flex: 1, padding: '8px', 
+                            background: 'rgba(255, 255, 255, 0.05)', 
+                            color: '#ccc', border: '1px solid #444', 
+                            borderRadius: '8px', cursor: 'pointer', fontSize: '0.85em'
+                        }}
+                        title="Download CSV"
+                        onMouseOver={e => e.target.style.background = 'rgba(255, 255, 255, 0.1)'}
+                        onMouseOut={e => e.target.style.background = 'rgba(255, 255, 255, 0.05)'}
+                    >
+                        Export CSV
+                    </button>
+                    <button 
+                        onClick={() => {
+                            import('../../utils/rfService').then(({ exportResults }) => {
+                                exportResults(results, 'kml');
+                            });
+                        }}
+                        style={{
+                            flex: 1, padding: '8px', 
+                            background: 'rgba(255, 255, 255, 0.05)', 
+                            color: '#ccc', border: '1px solid #444', 
+                            borderRadius: '8px', cursor: 'pointer', fontSize: '0.85em'
+                        }}
+                        title="Download KML (Google Earth)"
+                        onMouseOver={e => e.target.style.background = 'rgba(255, 255, 255, 0.1)'}
+                        onMouseOut={e => e.target.style.background = 'rgba(255, 255, 255, 0.05)'}
+                    >
+                        Export KML
+                    </button>
+                 </div>
+
                  {/* Recalculate Button */}
                  <button 
                     onClick={onRecalculate}

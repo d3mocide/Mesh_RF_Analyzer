@@ -1,7 +1,7 @@
 {
   "name": "meshrf",
   "private": true,
-  "version": "1.12.1",
+  "version": "1.13.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,14 +16,16 @@
     "@deck.gl/geo-layers": "^9.2.5",
     "@deck.gl/layers": "^9.2.5",
     "@turf/turf": "^7.3.1",
+    "chart.js": "^4.5.1",
     "geotiff": "^2.1.4-beta.1",
     "leaflet": "^1.9.4",
     "lodash": "^4.17.21",
+    "lucide-react": "^0.469.0",
     "prop-types": "^15.8.1",
     "react": "^19.2.0",
+    "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.2.0",
     "react-leaflet": "^5.0.0",
-    "lucide-react": "^0.469.0",
     "zustand": "^5.0.11"
   },
   "devDependencies": {

@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.0] - 2026-02-09
+
+### Added
+
+- **Coverage Analysis Tool**: Replaced the legacy "Site Finder" with a powerful **Radial Scan** engine.
+  - **Click-to-Scan**: Set a central Transmitter (TX) and drag to define a scan radius (1km - 20km).
+  - **Heatmap Visualization**: Color-coded overlay showing signal quality across the entire scanned area.
+  - **Best Signal Markers**: Top candidates are automatically identified and ranked.
+- **Terrain Profile Modal**: Click any "Best Signal" marker to view an interactive cross-section of the terrain, including Fresnel zones and line-of-sight clearance.
+- **Export Options**: Added dedicated buttons to export analysis results to **CSV** and **KML** (Google Earth).
+- **Advanced Controls**: Integrated Radius Slider, Refraction (K-Factor), and Clutter Height adjustments directly into the map interface.
+
+### Changed
+
+- **Terminology Overhaul**: Renamed "Elevation Scan" to "**Coverage Analysis**" across the entire application to better reflect its function.
+- **Metric Update**: Changed "Best Signals" to "**Best Links**" in results to emphasize connectivity.
+- **Visual Feedback**: Added a dashed circle overlay during radius adjustment for precise area selection.
+
+### Fixed
+
+- **Map Scroll Propagation**: Resolved an issue where scrolling inside the Results Panel or Profile Modal would zoom the map.
+- **Popup Clarity**: Standardized popup text to use the new terminology.
+
 ## [1.12.1] - 2026-02-09
 
 ### Added

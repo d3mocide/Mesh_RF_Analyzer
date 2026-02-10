@@ -1,41 +1,47 @@
 # Site Analyzer Tools
 
-The **Site Analyzer** suite is a powerful set of tools designed to identify, evaluate, and manage potential network node locations. It combines automated terrain scanning with manual site management.
+The **Site Analyzer** suite is a professional-grade toolkit for identifying, evaluating, and managing potential network node locations. It combines automated RF coverage analysis with manual site management.
 
 ## 🛠️ Components
 
-### 1. Site Finder (Automated Grid Scan)
+### 1. Coverage Analysis (Automated Radial Scan)
 
-A rapid optimization engine that scans a user-defined area to find the best potential transmitter spots based on weighted criteria.
+A powerful optimization engine that scans a radial area around a transmitter to find optimal reception spots based on signal strength, line-of-sight, and terrain features.
 
 **Features:**
 
-- **Grid-Based Optimization**: Scans a 10x10 grid within your bounding box.
-- **Weighted Scoring**: algorithms rank sites based on:
-  - **Elevation**: Height above sea level.
-  - **Prominence**: Local height relative to surrounding terrain.
-  - **fresnel**: Line-of-sight clearance probability.
-- **Visual Feedback**: Top 5 candidates are marked with ranked "Ghost Nodes" (Neo-Cyan markers).
+- **Radial Scan**: Scans a user-defined radius (1km - 20km) around your transmitter.
+- **Heatmap Visualization**: Overlays a color-coded signal quality grid on the map.
+- **Weighted Scoring**: Algorithms rank sites based on:
+  - **Signal Strength**: RSSI and Link Budget.
+  - **Line-of-Sight**: True Bresenham LOS + Fresnel Zone clearance.
+  - **Prominence**: Local height advantages.
+- **Visual Feedback**: Top candidates are marked with ranked "Best Signal" markers.
+- **Terrain Profiles**: Interactive cross-section views for every candidate site.
 
 ### 2. Multi-Site Manager (Manual Mode)
 
-A dedicated interface for managing a list of candidate sites.
+A dedicated interface for managing a list of manual candidate sites.
 
 **Features:**
 
 - **Candidate List**: Add/Remove potential sites manually.
-- **Coverage Preview**: Instantly view potential coverage stats (Area, Points Reachable).
 - **Comparison**: Toggle between different candidates to compare viewsheds.
+- **Conversion**: Easily promote a candidate site to a permanent Network Node.
 
 ## 🚀 How to Use
 
-### Mode 1: Site Finder (Auto)
+### Mode 1: Coverage Analysis (Auto)
 
 1. Select **Site Analyzer** from the toolbar.
-2. Ensure the "Elevation Scan" tab is active.
-3. **Draw Area**: Click two opposite corners on the map to define the scan box.
-4. **Adjust Weights**: Use the sliders in the panel to prioritize Elevation vs. Prominence vs. Fresnel.
-5. **Analyze**: The system will rank the top 5 spots. Click any "Ghost Node" to make it your temporary Primary Node.
+2. Ensure the **Coverage** tab is active.
+3. **Set Transmitter**: Click the map to place your Center (TX) location.
+4. **Set Radius**: Move your mouse to define the scan radius (or use the slider in Advanced Settings).
+5. **Scan**: Click again to initiate the coverage analysis.
+6. **Analyze Results**:
+   - View the color-coded **Heatmap**.
+   - Review the **Best Signal** candidates in the side panel.
+   - Click "View Profile" on any candidate to see the terrain cross-section.
 
 ### Mode 2: Multi-Site Manager (Manual)
 
@@ -48,12 +54,12 @@ A dedicated interface for managing a list of candidate sites.
 
 ## 📊 Optimization Weights
 
-- **Elevation (0.0 - 1.0)**: Prioritizes raw height. Good for regional coverage.
-- **Prominence (0.0 - 1.0)**: Prioritizes local peaks. Good for overcoming immediate obstacles.
-- **Fresnel (0.0 - 1.0)**: Prioritizes clearance from terrain obstructions.
+- **Elevation**: Prioritizes raw height above sea level.
+- **Prominence**: Prioritizes local peaks and ridgelines.
+- **Fresnel**: Prioritizes clear line-of-sight and Fresnel zone clearance.
 
 > [!TIP]
-> Use **Site Finder** to discover unknown high points, then switch to **Multi-Site Manager** to refine and compare specific candidates.
+> Use **Coverage Analysis** to discovering the best reception areas, then switch to **Multi-Site Manager** to fine-tune specific locations.
 
 > [!NOTE]  
-> "Ghost Nodes" are temporary. To save a location, convert it to a node or add it to your Multi-Site list.
+> "Ghost Nodes" (Best Signal markers) are temporary. To save a location, convert it to a node or add it to your Multi-Site list.

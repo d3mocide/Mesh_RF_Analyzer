@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useMapEvents, useMap, Rectangle, Marker, Popup } from 'react-leaflet';
+import { useMapEvents, useMap, Circle, Marker, Popup, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import { optimizeLocation } from '../../utils/rfService';
 import { useRF } from '../../context/RFContext';
 import OptimizationResultsPanel from './OptimizationResultsPanel';
+import ProfileModal from './ProfileModal';
 
 const createRankedIcon = (rank) => L.divIcon({
     className: 'ghost-icon',
@@ -21,35 +22,48 @@ const createRankedIcon = (rank) => L.divIcon({
 });
 
 const OptimizationLayer = ({ active, setActive, onStateUpdate, weights }) => {
-    const [startPoint, setStartPoint] = useState(null);
-    const [endPoint, setEndPoint] = useState(null);
+    // Radial State
+    const [center, setCenter] = useState(null);
+    const [radiusMeters, setRadiusMeters] = useState(0);
+    
+    // Common State
     const [ghostNodes, setGhostNodes] = useState([]);
     const [loading, setLoading] = useState(false);
     const [locked, setLocked] = useState(false);
     const [notification, setNotification] = useState(null); // { message, type }
     const [showResults, setShowResults] = useState(false);
+    const [selectedNode, setSelectedNode] = useState(null);
+    const [heatmapData, setHeatmapData] = useState([]);
+    const [showHeatmap, setShowHeatmap] = useState(true);
+    const [showSettings, setShowSettings] = useState(false);
+    
     const map = useMap(); 
-    const { freq, antennaHeight, isMobile } = useRF();
-    const rectRef = useRef(null); 
-    const lastSyncRef = useRef({ startPoint: null, loading: false, ghostCount: 0 }); 
+    const { freq, antennaHeight, rxHeight, isMobile, kFactor, setKFactor, clutterHeight, setClutterHeight } = useRF();
+    const lastSyncRef = useRef({ center: null, loading: false, ghostCount: 0 }); 
+    const settingsRef = useRef(null);
+    
+    useEffect(() => {
+        if (settingsRef.current) {
+            L.DomEvent.disableClickPropagation(settingsRef.current);
+            L.DomEvent.disableScrollPropagation(settingsRef.current);
+        }
+    });
 
-    // Manual sync helper to avoid infinite loops and redundant parent updates
+    // Manual sync helper
     const syncState = (forceState = null) => {
         if (!onStateUpdate) return;
-        
-        const stateToSync = forceState || { startPoint, loading, ghostNodes, showResults };
+        const stateToSync = forceState || { center, loading, ghostNodes, showResults };
         const prev = lastSyncRef.current;
         
-        // Only sync if essentials changed
-        const startChanged = stateToSync.startPoint !== prev.startPoint;
+        const centerChanged = stateToSync.center !== prev.center;
         const loadingChanged = stateToSync.loading !== prev.loading;
         const ghostCountChanged = (stateToSync.ghostNodes?.length || 0) !== prev.ghostCount;
         const resultsVisibleChanged = stateToSync.showResults !== prev.showResults;
 
-        if (startChanged || loadingChanged || ghostCountChanged || resultsVisibleChanged) {
+        if (centerChanged || loadingChanged || ghostCountChanged || resultsVisibleChanged) {
             onStateUpdate(stateToSync);
             lastSyncRef.current = {
-                startPoint: stateToSync.startPoint,
+                center: stateToSync.center,
                 loading: stateToSync.loading,
                 ghostCount: stateToSync.ghostNodes?.length || 0,
                 showResults: stateToSync.showResults
@@ -60,49 +74,76 @@ const OptimizationLayer = ({ active, setActive, onStateUpdate, weights }) => {
     useMapEvents({
         click(e) {
             if (!active) return;
-            if (loading) return; // Prevent interaction during load
-            if (locked || ghostNodes.length > 0) return; // Prevent interaction after results (user must clear)
+            if (loading) return; 
+            if (locked || ghostNodes.length > 0) return; 
             
-            if (!startPoint) {
-                setStartPoint(e.latlng);
-                setEndPoint(e.latlng); // Init box
-                onStateUpdate?.({ startPoint: e.latlng, loading: false, ghostNodes: [] }); // Immediate sync
+            if (!center) {
+                // First Click: Set Center
+                setCenter(e.latlng);
+                setRadiusMeters(0);
+                onStateUpdate?.({ center: e.latlng, loading: false, ghostNodes: [] });
             } else {
-                // Second click completes box
-                setEndPoint(e.latlng);
+                // Second Click: Lock Radius & Scan
                 setLocked(true);
-                handleOptimize(e.latlng);
-                onStateUpdate?.({ startPoint, loading: true, ghostNodes: [], showResults: false }); // Sync loading start
+                handleOptimize(center, radiusMeters); // pass current radius
+                onStateUpdate?.({ center, loading: true, ghostNodes: [], showResults: false });
             }
         },
         mousemove(e) {
-            if (active && startPoint && !locked && !ghostNodes.length) { // Only drag if searching and not locked
+            if (active && center && !locked && !ghostNodes.length) { 
                  if(loading) return; 
-                 // Update endPoint to show preview box (Local render only)
-                 setEndPoint(e.latlng);
+                 // Update radius based on mouse position
+                 const dist = center.distanceTo(e.latlng);
+                 setRadiusMeters(dist);
             }
         }
     });
 
-    const handleOptimize = async (finalEndPoint) => {
-        if (!startPoint) return;
+    const handleOptimize = async (scanCenter, scanRadius) => {
+        if (!scanCenter || scanRadius < 100) return; // Min 100m radius
         
         setLoading(true);
-        // Create bounds
-        const bounds = L.latLngBounds(startPoint, finalEndPoint);
         
-        // Track the final nodes to ensure parent gets fresh data (React state is async)
+        // Convert Center/Radius to Bounding Box for Backend
+        // 1 deg Lat ~= 111km. 1 deg Lon ~= 111km * cos(lat)
+        const r_km = scanRadius / 1000.0;
+        const lat_deg = r_km / 111.0;
+        const lon_deg = r_km / (111.0 * Math.cos(scanCenter.lat * (Math.PI / 180.0)));
+        
+        const min_lat = scanCenter.lat - lat_deg;
+        const max_lat = scanCenter.lat + lat_deg;
+        const min_lon = scanCenter.lng - lon_deg;
+        const max_lon = scanCenter.lng + lon_deg;
+        
+        const bounds = L.latLngBounds([min_lat, min_lon], [max_lat, max_lon]);
+        
         let finalGhostNodes = ghostNodes; 
 
+        // Create "Home" node from center point
+        const homeNode = {
+            lat: scanCenter.lat,
+            lon: scanCenter.lng,
+            height: rxHeight
+        };
+
         try {
-            const result = await optimizeLocation(bounds, freq, antennaHeight, weights);
+            const result = await optimizeLocation(bounds, freq, antennaHeight, rxHeight, weights, kFactor, clutterHeight, [homeNode]);
             if (result.status === 'success') {
-                setGhostNodes(result.locations);
-                finalGhostNodes = result.locations; // Update local ref for sync
+                // Filter results to actually be inside the circle? 
+                // Backend returns box. We can filter here or just show all in box.
+                // Let's filter for visual consistency.
+                const filtered = result.locations.filter(loc => {
+                    const d = map.distance([loc.lat, loc.lon], scanCenter);
+                    return d <= scanRadius * 1.05; // 5% tolerance
+                });
+                
+                setGhostNodes(filtered);
+                if (result.heatmap) setHeatmapData(result.heatmap);
+                finalGhostNodes = filtered; 
                 setShowResults(true); 
             } else {
-                setNotification({ message: result.message || "Scan failed. Server returned an error.", type: 'error' });
-                 setLocked(false); 
+                setNotification({ message: result.message || "Scan failed.", type: 'error' });
+                setLocked(false); 
             }
         } catch (err) {
             console.error(err);
@@ -110,111 +151,134 @@ const OptimizationLayer = ({ active, setActive, onStateUpdate, weights }) => {
             setLocked(false); 
         } finally {
             setLoading(false);
-            // Manual sync with correct data
-            onStateUpdate?.({ startPoint, loading: false, ghostNodes: finalGhostNodes, showResults: true }); 
+            onStateUpdate?.({ center: scanCenter, loading: false, ghostNodes: finalGhostNodes, showResults: true }); 
         }
     };
     
-
+    // Helper to trigger rescan from UI (Slider)
+    const handleRecalculate = () => {
+        if(center && radiusMeters) {
+            // clear old results?? or keep them until new ones come?
+            // setGhostNodes([]); 
+            handleOptimize(center, radiusMeters);
+        }
+    };
 
     const reset = () => {
-        setStartPoint(null);
-        setEndPoint(null);
+        setCenter(null);
+        setRadiusMeters(0);
         setGhostNodes([]);
+        setHeatmapData([]);
         setLocked(false);
         setNotification(null);
         setShowResults(false);
-        onStateUpdate?.({ startPoint: null, loading: false, ghostNodes: [], showResults: false }); // Manual sync
+        onStateUpdate?.({ center: null, loading: false, ghostNodes: [], showResults: false });
     }
 
-    // Reset when deactivated specificially
+    // Reset when deactivated
     useEffect(() => {
-        if (!active) {
-            reset();
-        }
+        if (!active) reset();
     }, [active]);
-
-    // Sync results visibility state back to parent
-    useEffect(() => {
-        syncState();
-    }, [showResults]);
 
     // Internal auto-close for transient notifications
     useEffect(() => {
         if (notification && notification.transient) {
-            const timer = setTimeout(() => {
-                setNotification(null);
-            }, 1000); // Clear after 1 second
+            const timer = setTimeout(() => { setNotification(null); }, 1000);
             return () => clearTimeout(timer);
         }
     }, [notification]);
 
     if (!active && !ghostNodes.length) return null;
 
-    let bounds = null;
-    if (startPoint && endPoint) {
-        bounds = L.latLngBounds(startPoint, endPoint);
-    }
-
     return (
         <>
-            {/* Instructions moved to MapContainer for UI consistency */}
-
-
-            {/* Bounding Box */}
-            {bounds && (
+            {/* Visuals: Center, Radius, Line */}
+            {center && (
                 <>
-                    <Rectangle 
-                        ref={rectRef}
-                        bounds={bounds} 
-                        pathOptions={{ color: '#00f2ff', weight: 1, dashArray: '5,5', fillOpacity: 0.1 }} 
+                    {/* Home/TX Marker */}
+                    <Marker 
+                        position={center}
+                        icon={L.divIcon({ 
+                            className: 'home-icon', 
+                            html: `<div style="width: 20px; height: 20px; background: #00f2ff; border: 2px solid white; box-shadow: 0 0 10px #00f2ff; transform: rotate(45deg);"></div>`, 
+                            iconSize: [20, 20], 
+                            iconAnchor: [10, 10] 
+                        })}
                     />
                     
-                    {/* Draggable Corner Markers */}
-                    {active && startPoint && endPoint && (
-                        <>
-                            <Marker 
-                                position={startPoint} 
-                                draggable={true}
-                                icon={L.divIcon({ className: 'corner-handle', html: '<div style="width: 20px; height: 20px; background: #00f2ff; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 5px rgba(0,0,0,0.5);"></div>', iconSize: [20, 20], iconAnchor: [10, 10] })}
-                                eventHandlers={{
-                                    drag: (e) => {
-                                         // Imperative update to avoid re-render loop killing drag
-                                         if (rectRef.current) {
-                                             rectRef.current.setBounds(L.latLngBounds(e.target.getLatLng(), endPoint));
-                                         }
-                                    },
-                                    dragend: (e) => {
-                                        setStartPoint(e.target.getLatLng());
-                                    }
-                                }}
-                            />
-                            <Marker 
-                                position={endPoint} 
-                                draggable={true}
-                                icon={L.divIcon({ className: 'corner-handle', html: '<div style="width: 20px; height: 20px; background: #00f2ff; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 5px rgba(0,0,0,0.5);"></div>', iconSize: [20, 20], iconAnchor: [10, 10] })}
-                                eventHandlers={{
-                                    drag: (e) => {
-                                        if (rectRef.current) {
-                                             rectRef.current.setBounds(L.latLngBounds(startPoint, e.target.getLatLng()));
-                                         }
-                                    },
-                                    dragend: (e) => {
-                                        setEndPoint(e.target.getLatLng());
-                                    }
-                                }}
-                            />
-                        </>
+                    {/* The Scan Circle */}
+                    <Circle 
+                        center={center}
+                        radius={radiusMeters}
+                        pathOptions={{ 
+                            color: '#00f2ff', 
+                            weight: 1, 
+                            dashArray: locked ? null : '5,5', 
+                            fillOpacity: 0.05,
+                            fillColor: '#00f2ff'
+                        }}
+                    />
+                    
+                    {/* Radius Radius Line (only whilst dragging) */}
+                    {!locked && radiusMeters > 0 && (
+                        <div style={{
+                            position: 'absolute',
+                            left: '50%', top: '50%', 
+                            color: 'white', 
+                            background: 'rgba(0,0,0,0.5)',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            pointerEvents: 'none',
+                             // This is tricky to place in LatLng space without a Marker with a DivIcon.
+                             // Actually, we can just use a Popup or Tooltip, but let's skip for now to keep it clean.
+                        }} />
                     )}
+                </>
+            )}
+
+            {/* Heatmap Overlay */}
+            {heatmapData.length > 0 && showHeatmap && (
+                <>
+                    {heatmapData.map((pt, i) => {
+                         // Optional: Filter heatmap to circle?
+                         const dist = map.distance([pt.lat, pt.lon], center);
+                         if (dist > radiusMeters) return null;
+
+                         const opacity = Math.max(0.1, pt.score / 150); 
+                         let color = '#ff0000';
+                         if (pt.score > 80) color = '#00ff41'; 
+                         else if (pt.score > 50) color = '#eeff00'; 
+                         else if (pt.score > 20) color = '#ff8800'; 
+                         
+                         return (
+                            <Circle 
+                                key={`hm-${i}`}
+                                center={[pt.lat, pt.lon]}
+                                radius={75} 
+                                pathOptions={{ 
+                                    color: color, 
+                                    fillColor: color, 
+                                    fillOpacity: 0.3, 
+                                    weight: 0 
+                                }}
+                            />
+                         )
+                    })}
                 </>
             )}
 
             {/* Ghost Nodes */}
             {ghostNodes.map((node, i) => (
-                <Marker key={i} position={[node.lat, node.lon]} icon={createRankedIcon(i + 1)}>
+                <Marker 
+                    key={i} 
+                    position={[node.lat, node.lon]} 
+                    icon={createRankedIcon(i + 1)}
+                    eventHandlers={{ click: () => setSelectedNode(node) }}
+                >
                     <Popup>
-                        <strong>Ideal Spot #{i+1}</strong><br/>
-                        Score: {node.score}
+                        <strong>Best Signal #{i+1}</strong><br/>
+                        Score: {node.score}<br/>
+                        <span style={{ fontSize: '0.8em', color: '#00f2ff', cursor: 'pointer' }}>Click to view profile</span>
                     </Popup>
                 </Marker>
             ))}
@@ -251,7 +315,7 @@ const OptimizationLayer = ({ active, setActive, onStateUpdate, weights }) => {
                         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
                         @keyframes pulse-text { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
                     `}</style>
-                    <div style={{ fontSize: '1.2em', fontWeight: '600', letterSpacing: '1px', animation: 'pulse-text 2s ease-in-out infinite' }}>SCANNING TERRAIN</div>
+                    <div style={{ fontSize: '1.2em', fontWeight: '600', letterSpacing: '1px', animation: 'pulse-text 2s ease-in-out infinite' }}>SCANNING COVERAGE</div>
                     <div style={{ fontSize: '0.9em', color: 'rgba(255, 255, 255, 0.6)' }}>Calculating RF propagation paths...</div>
                 </div>
             )}
@@ -283,7 +347,6 @@ const OptimizationLayer = ({ active, setActive, onStateUpdate, weights }) => {
                         @keyframes fadeIn { from { opacity: 0; transform: translate(-50%, -40%); } to { opacity: 1; transform: translate(-50%, -50%); } }
                     `}</style>
                     
-                    {/* Icon */}
                     <div style={{
                         width: '64px', height: '64px',
                         borderRadius: '50%',
@@ -299,7 +362,6 @@ const OptimizationLayer = ({ active, setActive, onStateUpdate, weights }) => {
                         )}
                     </div>
 
-                    {/* Text */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <div style={{ fontSize: '1.4em', fontWeight: '700', letterSpacing: '0.5px', color: '#fff' }}>
                             {notification.type === 'success' ? 'SCAN COMPLETE' : 'ANALYSIS FAILED'}
@@ -309,8 +371,6 @@ const OptimizationLayer = ({ active, setActive, onStateUpdate, weights }) => {
                         </div>
                     </div>
 
-                    {/* Button */}
-                    {/* Button - Only show if not transient (i.e. error) */}
                     {!notification.transient && (
                         <button 
                             onClick={() => {
@@ -363,11 +423,89 @@ const OptimizationLayer = ({ active, setActive, onStateUpdate, weights }) => {
                         if (map) map.flyTo([node.lat, node.lon], 16, { duration: 1.5 });
                     }}
                     onReset={reset}
-                    onRecalculate={() => handleOptimize(endPoint)}
+                    onRecalculate={handleRecalculate}
                 />
             )}
 
-             {/* Exit/Clear Button (Only show if we have results and no overlay is up) */}
+             {/* Profile Modal */}
+            {selectedNode && (
+                <ProfileModal
+                    tx={{ lat: center.lat, lon: center.lng, height: antennaHeight }}
+                    rx={{ lat: selectedNode.lat, lon: selectedNode.lon, height: rxHeight }}
+                    context={{ freq }}
+                    onClose={() => setSelectedNode(null)}
+                />
+            )}
+            
+            {/* Advanced Settings & Legend */}
+            {(active || ghostNodes.length > 0) && (
+                <div className="settings-panel" 
+                    ref={settingsRef}
+                    style={{
+                        position: 'absolute', bottom: '30px', left: '20px',
+                        background: 'rgba(10, 10, 15, 0.95)', padding: '15px',
+                        borderRadius: '12px', border: '1px solid #00f2ff',
+                        zIndex: 9999, color: '#fff', fontSize: '0.9em',
+                        backdropFilter: 'blur(10px)',
+                        boxShadow: '0 0 20px rgba(0,0,0,0.5)',
+                        cursor: 'default'
+                }}>
+                    <div 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setShowSettings(!showSettings);
+                        }}
+                        style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: showSettings ? '10px' : '0' }}
+                    >
+                        <span style={{ color: '#00f2ff' }}>⚙️ Advanced RF</span>
+                        <span style={{ fontSize: '0.8em', color: '#666' }}>{showSettings ? '▲' : '▼'}</span>
+                    </div>
+                    
+                    {showSettings && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '200px' }}>
+                             {/* Radius Slider (New) */}
+                             {locked && (
+                                <label style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #333', paddingBottom: '8px' }}>
+                                    <span>Radius: {(radiusMeters/1000).toFixed(1)} km</span>
+                                    <input 
+                                        type="range" min="1000" max="20000" step="500" 
+                                        value={radiusMeters} 
+                                        onChange={e => {
+                                            const r = parseFloat(e.target.value);
+                                            setRadiusMeters(r);
+                                        }}
+                                        onMouseUp={handleRecalculate}
+                                        onTouchEnd={handleRecalculate}
+                                    />
+                                </label>
+                             )}
+
+                            <label style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span>Refraction (K): {kFactor}</span>
+                                <input 
+                                    type="range" min="0.5" max="2.0" step="0.01" 
+                                    value={kFactor} onChange={e => setKFactor(parseFloat(e.target.value))}
+                                />
+                            </label>
+                            <label style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span>Clutter (m): {clutterHeight}</span>
+                                <input 
+                                    type="number" min="0" max="50" style={{ width: '50px', background: '#333', border: 'none', color: '#fff', padding: '2px' }}
+                                    value={clutterHeight} onChange={e => setClutterHeight(parseFloat(e.target.value))}
+                                />
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', borderTop: '1px solid #333', paddingTop: '5px' }}>
+                                <input 
+                                    type="checkbox" 
+                                    checked={showHeatmap} 
+                                    onChange={e => setShowHeatmap(e.target.checked)} 
+                                />
+                                <span>Show Heatmap Overlay</span>
+                            </label>
+                        </div>
+                    )}
+                </div>
+            )}
 
         </>
     );

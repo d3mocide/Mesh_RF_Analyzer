@@ -44,7 +44,7 @@ class OptimizationService:
         
         return max(0, prominence)
 
-    def check_fresnel_clearance(self, tx_lat, tx_lon, tx_h_m, rx_list, freq_mhz):
+    def check_fresnel_clearance(self, tx_lat, tx_lon, tx_h_m, rx_list, freq_mhz, k_factor=1.333, clutter_height=0.0):
         """
         Check Fresnel zone clearance to a list of existing nodes.
         Rx_list: list of dicts {lat, lon, height}
@@ -66,7 +66,10 @@ class OptimizationService:
             )
             
             # Analyze
-            res = rf_physics.analyze_link(profile, dist_m, freq_mhz, tx_h_m, rx['height'])
+            res = rf_physics.analyze_link(
+                profile, dist_m, freq_mhz, tx_h_m, rx['height'],
+                k_factor=k_factor, clutter_height=clutter_height
+            )
             
             # Use min_clearance_ratio from rf_physics
             min_ratio = res.get('min_clearance_ratio', 0)
@@ -82,7 +85,7 @@ class OptimizationService:
             
         return total_clearance / count if count > 0 else 1.0
 
-    def score_candidate(self, candidate, weights, rx_list=None):
+    def score_candidate(self, candidate, weights, rx_list=None, tx_height=10.0, rx_height=2.0, freq_mhz=915.0, k_factor=1.333, clutter_height=0.0):
         """
         candidate: {lat, lon, elevation}
         weights: {elevation, prominence, fresnel}
@@ -95,10 +98,11 @@ class OptimizationService:
             
         fresnel = 1.0
         if rx_list:
-            # Default RX height 2m if not specified in rx_list
-            # Default freq 915MHz needs to be passed or assumed
+            # Check fresnel against existing nodes using their heights
+            # We use the passed tx_height and freq_mhz
             fresnel = self.check_fresnel_clearance(
-                candidate['lat'], candidate['lon'], 10, rx_list, 915 
+                candidate['lat'], candidate['lon'], tx_height, rx_list, freq_mhz,
+                k_factor=k_factor, clutter_height=clutter_height
             )
             
         candidate['prominence'] = prominence

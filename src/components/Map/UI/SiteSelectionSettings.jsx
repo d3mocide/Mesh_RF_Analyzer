@@ -1,9 +1,6 @@
 
 import React from 'react';
-import { useRF } from '../../../context/RFContext';
-
 const SiteSelectionSettings = ({ weights, setWeights, active }) => {
-    const { isMobile } = useRF();
     
     if (!active) return null;
 

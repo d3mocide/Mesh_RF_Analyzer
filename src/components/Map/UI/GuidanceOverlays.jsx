@@ -109,7 +109,7 @@ const GuidanceOverlays = ({
             <div style={overlayStyle}>
                 <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px' }}>
                     <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#00f2ff' }}>
-                        Elevation Scan Active
+                        Coverage Analysis Active
                     </div>
                     <div 
                         onClick={() => setElevationHelp(!elevationHelp)}
@@ -137,7 +137,7 @@ const GuidanceOverlays = ({
                 
                 {!elevationHelp && (
                     <div style={{ fontSize: '14px', color: '#ccc', textAlign: 'center' }}>
-                        {!optimizeState.startPoint ? "Click to set first corner" : "Set opposite corner | Drag cyan dots to adjust"}
+                        {!optimizeState.center ? "Click map to set Center (TX)" : "Adjust radius -> Click again to Scan"}
                     </div>
                 )}
     
@@ -153,11 +153,11 @@ const GuidanceOverlays = ({
                         width: '100%'
                     }}>
                         <div style={{ fontWeight: 'bold', color: '#00f2ff', marginBottom: '4px' }}>How to Scan</div>
-                        <div style={{ marginBottom: '8px' }}>This tool identifies the top high-ground locations within a defined area.</div>
+                        <div style={{ marginBottom: '8px' }}>identify optimal reception locations within a radius.</div>
                         <ul style={{ paddingLeft: '18px', margin: 0, color: '#bbb' }}>
-                            <li><strong>Area:</strong> Set two corners on the map to define the scan region.</li>
-                            <li><strong>Analysis:</strong> The engine queries elevation data for points across the entire grid.</li>
-                            <li><strong>Result:</strong> Top 5 highest spots are marked for potential transmitter sites.</li>
+                            <li><strong>Step 1:</strong> Click map to place your Transmitter (Center).</li>
+                            <li><strong>Step 2:</strong> Move mouse to define coverage radius. Click to Scan.</li>
+                            <li><strong>Result:</strong> Best reception spots are ranked by LOS and Signal Strength.</li>
                         </ul>
                     </div>
                 )}

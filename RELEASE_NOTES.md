@@ -1,25 +1,33 @@
-# Release v1.12.1: The "Neon Precision" Update �⚡
+# Release v1.13.0: The "Coverage Analysis" Update 📡
 
-This release focuses on UI polish and functional aesthetics, synchronizing our analysis parameters with the visual language of our toolset. We've introduced dynamic progress tracking and color-coded logic to make the interface feel as precise as the physics driving it.
+This major feature update transforms the old "Site Finder" into a professional-grade **Coverage Analysis** tool. We've replaced the rigid grid system with a flexible **Radial Scan** engine, allowing you to instantly visualize signal quality around any transmitter.
 
-## 🌟 Key Changes
+## 🌟 Key Features
 
-### 1. � Logic-Linked Colors
+### 1. 🎯 Radial Coverage Analysis
 
-- **Visual Grouping**: Optimization sliders now share the exact colors of the tools they represent.
-  - Elevation settings now glow with the same **Purple** as the Viewshed tool.
-  - Prominence tracks with the **Orange** of the RF Simulator.
-- **Cohesive Antenna Mapping**: The Antenna Height slider also adopts the Viewshed purple, creating a unified visual theme for all height-based parameters.
+- **Click-to-Scan**: Simply click the map to place your Transmitter (TX), then drag to set your scan radius (up to 20km).
+- **Heatmap Overlay**: See a color-coded signal quality layer that shows you exactly where reception is strongest (Green) or weakest (Red).
+- **Best Links**: The system automatically identifies and ranks the top reception sites based on Line-of-Sight, Fresnel Clearance, and Signal Strength.
 
-### 2. ⚡ Dynamic Progress Sliders
+### 2. 🏔️ Interactive Terrain Profiles
 
-- **Instant Feedback**: Sliders now feature a "thick neon" fill that provides immediate visual tracking of your settings.
-- **Refined Glow**: We've tuned the neon intensity. The UI maintains its cyberpunk energy but with a cleaner, more professional balance.
+- **Deep Dive**: Click any "Best Link" marker to open a detailed **Terrain Profile**.
+- **Visual Physics**: See the actual ground elevation, the direct Line-of-Sight path, and the Fresnel Zone clearance in a beautiful, interactive chart.
 
-### 3. 🧹 System Consolidation
+### 3. 💾 Data Export
 
-- **Unified Styling**: Removed fragmented inline styles in favor of a robust, global range-input system.
-- **Bug Fixes**: Resolved case-sensitivity issues in weight mapping to ensure the right colors always show up on the right tools.
+- **Take it with you**: Export your analysis results to **CSV** for spreadsheets or **KML** for 3D visualization in Google Earth.
+
+### 4. 🎛️ Advanced RF Controls
+
+- **Fine-Tuning**: Adjust **Refraction (K-Factor)** and **Clutter Height** directly from the map interface to model different atmospheric conditions and environments.
+
+## 🛠️ Enhancements
+
+- **Renamed**: "Elevation Scan" is now **Coverage Analysis** to better reflect its capabilities.
+- **Polished**: Scroll propagation is now blocked in panels, preventing accidental map zooms while viewing results.
+- **Clarified**: Tooltips and guidance overlays have been rewritten for clarity.
 
 ## 🚀 How to Upgrade
 
@@ -29,4 +37,4 @@ This release focuses on UI polish and functional aesthetics, synchronizing our a
 
 ---
 
-_Precision isn't just in the numbers; it's in how we see them. Thank you for building meshRF!_
+_See the unseen. Happy scanning!_

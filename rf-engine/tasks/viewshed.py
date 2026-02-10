@@ -37,6 +37,8 @@ def calculate_batch_viewshed(self, params):
     options = params.get('options', {})
     radius = options.get('radius', 5000)
     optimize_n = options.get('optimize_n')
+    rx_height = options.get('rx_height', 2.0)
+    freq = options.get('frequency_mhz', 915.0)
     
     # 1. Determine Bounding Box for Composite
     if not nodes_data:
@@ -80,7 +82,10 @@ def calculate_batch_viewshed(self, params):
             height = node_data.get('height', 10)
             
             # Simple viewshed
-            grid, grid_lats, grid_lons = calculate_viewshed(tile_manager, lat, lon, height, radius, resolution_m=res_m)
+            grid, grid_lats, grid_lons = calculate_viewshed(
+                tile_manager, lat, lon, height, radius, 
+                rx_h=rx_height, freq_mhz=freq, resolution_m=res_m
+            )
             
             coverage_count = int(np.sum(grid))
             source_elev = tile_manager.get_elevation(lat, lon)
@@ -101,36 +106,66 @@ def calculate_batch_viewshed(self, params):
         except Exception as e:
             logger.error(f"Error processing node {i}: {e}")
 
-    # 2. Greedy Optimization (Optional)
+    # 2. Greedy Optimization (Marginal Gain)
     selected_results = all_node_results
     if optimize_n and 0 < optimize_n < len(all_node_results):
-        # We have a custom greedy implementation in algorithms.py but it re-calculates everything.
-        # Let's do a quick local greedy since we already have the grids.
         selected_results = []
-        covered_points = set()
+        covered_points = set() # Set of (y, x) tuples on master_grid
+        
+        # Pre-compute pixel sets for all candidates
+        candidate_sets = []
+        for res in all_node_results:
+            pixels = set()
+            g = res['grid']
+            lats = res['grid_lats']
+            lons = res['grid_lons']
+            
+            # Optimization: Vectorize or iterate fast
+            # Since grids are small (local viewshed), iteration is okay-ish
+            # But let's try to be efficient.
+            # Grid indices to lat/lon -> master y/x
+            
+            # Get indices where grid > 0
+            visible_indices = np.argwhere(g > 0)
+            
+            for r, c in visible_indices:
+                # Map local grid lat/lon to master grid y/x
+                # Note: lat/lon arrays in res might be 1D 
+                pixel_lat = lats[r]
+                pixel_lon = lons[c]
+                
+                y = lat_to_y(pixel_lat)
+                x = lon_to_x(pixel_lon)
+                
+                if 0 <= y < rows and 0 <= x < cols:
+                    pixels.add((y, x))
+            
+            candidate_sets.append(pixels)
+
+        # Greedy Loop
+        remaining_indices = list(range(len(all_node_results)))
         
         for _ in range(optimize_n):
             best_idx = -1
-            best_gain = 0
+            best_marginal_gain = -1
             
-            for idx, res in enumerate(all_node_results):
-                if any(r['lat'] == res['lat'] and r['lon'] == res['lon'] for r in selected_results):
-                    continue
+            for idx in remaining_indices:
+                cand_pixels = candidate_sets[idx]
+                # Calculate new pixels that are NOT in covered_points
+                # len(cand_pixels - covered_points)
+                # Set difference is fast
+                new_coverage = len(cand_pixels.difference(covered_points))
                 
-                # Sample the grid for gains
-                # Actually, simplified: just use the grid pixels
-                # Since we don't have a shared pixel space yet for individual grids, 
-                # we'll skip complex set unions here and just use the individual area as a proxy,
-                # or just use the algorithm.py one if we didn't care about the duplicate work.
-                # FOR NOW: Use the individual area to pick the best.
-                gain = res['coverage_area_km2'] 
-                if gain > best_gain:
-                    best_gain = gain
+                if new_coverage > best_marginal_gain:
+                    best_marginal_gain = new_coverage
                     best_idx = idx
             
-            if best_idx != -1:
+            if best_idx != -1 and best_marginal_gain > 0:
                 selected_results.append(all_node_results[best_idx])
+                covered_points.update(candidate_sets[best_idx])
+                remaining_indices.remove(best_idx)
             else:
+                # No more gain to be had (or empty)
                 break
 
     # 3. Blit to Master Grid and generate Composite

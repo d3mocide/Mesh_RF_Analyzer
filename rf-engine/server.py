@@ -246,7 +246,11 @@ class OptimizeRequest(BaseModel):
     max_lat: float
     max_lon: float
     frequency_mhz: float
-    height_meters: float
+    tx_height: float
+    rx_height: float = 2.0
+    k_factor: float = 1.333
+    clutter_height: float = 0.0
+    return_heatmap: bool = False
     weights: dict = {"elevation": 0.5, "prominence": 0.3, "fresnel": 0.2}
     existing_nodes: list = [] # List of {lat, lon, height}
 
@@ -256,14 +260,27 @@ def optimize_location_endpoint(req: OptimizeRequest):
     Find best location using multi-criteria analysis (elevation, prominence, fresnel).
     """
     try:
-        # Grid search (10x10) - maybe increase to 15x15 for better prominence detection?
-        steps = 10
-        lat_step = (req.max_lat - req.min_lat) / steps
-        lon_step = (req.max_lon - req.min_lon) / steps
+        # Adaptive Grid
+        # Calculate dimensions in km
+        dist_lat_km = rf_physics.haversine_distance(req.min_lat, req.min_lon, req.max_lat, req.min_lon) / 1000.0
+        dist_lon_km = rf_physics.haversine_distance(req.min_lat, req.min_lon, req.min_lat, req.max_lon) / 1000.0
+        
+        # Target resolution: 150m (0.15 km)
+        target_res_km = 0.15
+        
+        steps_lat = int(dist_lat_km / target_res_km)
+        steps_lon = int(dist_lon_km / target_res_km)
+        
+        # Safety Caps (Min 10, Max 50 -> 2500 points max)
+        steps_lat = max(10, min(50, steps_lat))
+        steps_lon = max(10, min(50, steps_lon))
+        
+        lat_step = (req.max_lat - req.min_lat) / steps_lat
+        lon_step = (req.max_lon - req.min_lon) / steps_lon
         
         coords = []
-        for i in range(steps + 1):
-            for j in range(steps + 1):
+        for i in range(steps_lat + 1):
+            for j in range(steps_lon + 1):
                 lat = req.min_lat + (i * lat_step)
                 lon = req.min_lon + (j * lon_step)
                 coords.append((lat, lon))
@@ -280,7 +297,16 @@ def optimize_location_endpoint(req: OptimizeRequest):
                 "elevation": elevs[i]
             }
             # Score Components
-            metrics = optimization_service.score_candidate(cand, req.weights, req.existing_nodes)
+            metrics = optimization_service.score_candidate(
+                cand, 
+                req.weights, 
+                req.existing_nodes,
+                tx_height=req.tx_height,
+                rx_height=req.rx_height,
+                freq_mhz=req.frequency_mhz,
+                k_factor=req.k_factor,
+                clutter_height=req.clutter_height
+            )
             cand.update(metrics) # Adds prominence, fresnel
             candidates.append(cand)
 
@@ -307,10 +333,10 @@ def optimize_location_endpoint(req: OptimizeRequest):
         # Sort by Score desc
         candidates.sort(key=lambda x: x["score"], reverse=True)
         
-        # Take top 5
+        # Take top 5 for "Ghost Nodes"
         top_results = candidates[:5]
 
-        return {
+        response = {
             "status": "success",
             "locations": top_results,
             "metadata": {
@@ -318,6 +344,17 @@ def optimize_location_endpoint(req: OptimizeRequest):
                 "max_prominence": max_prom
             }
         }
+        
+        if req.return_heatmap:
+            # Send simplified data for heatmap (lat, lon, score)
+            # To save bandwidth, maybe round lat/lon?
+            heatmap_data = [
+                {"lat": round(c['lat'], 5), "lon": round(c['lon'], 5), "score": c['score']}
+                for c in candidates
+            ]
+            response["heatmap"] = heatmap_data
+
+        return response
     except Exception as e:
         print(f"Optimize Error: {e}")
         from fastapi.responses import JSONResponse
@@ -325,3 +362,29 @@ def optimize_location_endpoint(req: OptimizeRequest):
             status_code=500, 
             content={"status": "error", "message": f"Server Error: {str(e)}"}
         )
+
+class ExportRequest(BaseModel):
+    locations: list
+    format: str = "csv" # csv, kml
+
+@app.post("/export-results")
+def export_results_endpoint(req: ExportRequest):
+    """
+    Generate export file for site candidates.
+    """
+    from api.export import generate_csv, generate_kml
+    
+    if req.format == "kml":
+        content = generate_kml(req.locations)
+        media_type = "application/vnd.google-earth.kml+xml"
+        filename = "rf_scan_results.kml"
+    else:
+        content = generate_csv(req.locations)
+        media_type = "text/csv"
+        filename = "rf_scan_results.csv"
+        
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )

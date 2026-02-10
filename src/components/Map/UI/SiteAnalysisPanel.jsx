@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import SiteSelectionSettings from './SiteSelectionSettings.jsx';
 import NodeManager from './NodeManager.jsx';
+
 import { useRF } from '../../../context/RFContext'; 
 
 const SiteAnalysisPanel = ({ 
@@ -84,7 +85,7 @@ const SiteAnalysisPanel = ({
                     style={styles.tab(mode === 'auto')} 
                     onClick={() => setMode('auto')}
                 >
-                    Elevation Scan
+                    Coverage
                 </div>
                 <div 
                     style={styles.tab(mode === 'manual')} 

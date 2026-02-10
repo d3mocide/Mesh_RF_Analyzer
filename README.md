@@ -1,4 +1,4 @@
-# meshRF 📡 v1.12.0
+# meshRF 📡 v1.13.0
 
 A professional-grade RF propagation and link analysis tool designed for LoRa Mesh networks (Meshtastic, Reticulum, Sidewinder). Built with **React**, **Leaflet**, and a high-fidelity physics core combining a **Python Geodetic Engine** with **High-Performance WASM Modules**.
 
@@ -24,7 +24,7 @@ meshRF is designed for **mission-critical availability**. It operates with **zer
 ### 2. 📍 Advanced Site Surveying
 
 - **Multi-Site Management**: Dedicated manager for maintaining and comparing lists of candidate sites.
-- **Grid-Based Location Optimization**: Scan user-defined bounding boxes to identify optimal node placement based on elevation, prominence, and Fresnel clearance.
+- **Coverage Analysis**: Scan a radial area around your transmitter to identify optimal reception points based on LOS, Fresnel clearance, and signal strength.
 - **RF Coverage Simulator**: Optimized Wasm-powered ITM propagation modeling for wide-area coverage visualization.
 - **Viewshed Analysis**: Desktop-grade viewshed calculations with "Shadow Mode" visualization.
 - **Environment Tuning**: Fine-tune simulations with **Ground Type** ($\epsilon$, $\sigma$) and **Climate Zone** parameters for regional accuracy. Supports Sea Water, City/Industrial, Farmland, and more.

@@ -194,10 +194,23 @@ def analyze_link(elevs, dist_m, freq_mhz, tx_h, rx_h, k_factor=1.333, clutter_he
     elif min_clearance_ratio < 0.6:
         status = "degraded"
         
+    # Calculate arrays for visualization
+    fresnel_zones = []
+    for i in range(num_points):
+        d1 = dists[i]
+        d2 = dist_m - d1
+        if d1 < 1 or d2 < 1:
+            fresnel_zones.append(0.0)
+        else:
+            fresnel_zones.append(calculate_fresnel_zone(dist_m, freq_mhz, d1, d2))
+            
     return {
         "dist_km": dist_m / 1000,
         "status": status,
         "min_clearance_ratio": float(min_clearance_ratio),
         "path_loss_db": 0.0,
-        "profile": elevs.tolist()
+        "profile": elevs.tolist(),
+        "los_profile": los_h.tolist(),
+        "fresnel_profile": fresnel_zones,
+        "terrain_profile": terrain_h.tolist() # Includes curvature + clutter
     }
