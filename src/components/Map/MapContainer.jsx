@@ -5,6 +5,7 @@ import {
   ImageOverlay,
   Marker,
   Popup,
+  Polyline,
   Rectangle,
   ZoomControl,
 } from "react-leaflet";
@@ -346,7 +347,7 @@ const MapComponent = () => {
 
 
   // Simulation Store integration
-  const { nodes: simNodes, results: simResults, compositeOverlay } = useSimulationStore();
+  const { nodes: simNodes, results: simResults, compositeOverlay, interNodeLinks, totalUniqueCoverageKm2 } = useSimulationStore();
 
   // Automatically show results panel when scan finishes
   useEffect(() => {
@@ -835,6 +836,23 @@ const MapComponent = () => {
             </Marker>
         ))}
 
+        {/* Inter-node link quality polylines */}
+        {showAnalysisResults && simResults && interNodeLinks && interNodeLinks.map((link, i) => {
+            const nodeA = simResults[link.node_a_idx];
+            const nodeB = simResults[link.node_b_idx];
+            if (!nodeA || !nodeB) return null;
+            const colorMap = { viable: '#00f2ff', degraded: '#ffd700', blocked: '#ff4444', unknown: '#888' };
+            const color = colorMap[link.status] || '#888';
+            const dashArray = link.status === 'blocked' ? '6 6' : link.status === 'degraded' ? '10 4' : null;
+            return (
+                <Polyline
+                    key={`link-${i}`}
+                    positions={[[nodeA.lat, nodeA.lon], [nodeB.lat, nodeB.lon]]}
+                    pathOptions={{ color, weight: 2, opacity: 0.85, dashArray }}
+                />
+            );
+        })}
+
         {/* Batch Nodes Panel - Must be inside MapContainer to use useMap hook */}
         {showBatchPanel && batchNodes.length > 0 && (
           <BatchNodesPanelWrapper
@@ -1056,8 +1074,10 @@ const MapComponent = () => {
 
       {/* Site Analysis Results Panel moved outside to prevent click-through */}
       {showAnalysisResults && simResults && simResults.length > 0 && (
-        <SiteAnalysisResultsPanel 
+        <SiteAnalysisResultsPanel
           results={simResults}
+          interNodeLinks={interNodeLinks}
+          totalUniqueCoverageKm2={totalUniqueCoverageKm2}
           units={units}
           onCenter={(res) => {
               if (map) {
@@ -1071,7 +1091,7 @@ const MapComponent = () => {
           }}
           onRunNew={() => {
               setShowAnalysisResults(false);
-              setToolMode('optimize'); 
+              setToolMode('optimize');
               setSiteAnalysisMode('manual');
           }}
         />

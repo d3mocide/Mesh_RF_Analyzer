@@ -1,40 +1,62 @@
-# Release v1.13.0: The "Coverage Analysis" Update 📡
+# Release v1.14.0: Mesh Link Intelligence
 
-This major feature update transforms the old "Site Finder" into a professional-grade **Coverage Analysis** tool. We've replaced the rigid grid system with a flexible **Radial Scan** engine, allowing you to instantly visualize signal quality around any transmitter.
+This release transforms the Multi-Site Analysis tool from a simple coverage area reporter into a full **mesh network planning suite**. After running a scan you can now immediately answer the questions that matter most: which sites can talk to each other, how much does each site uniquely contribute, and is the proposed network actually a connected mesh?
 
-## 🌟 Key Features
+## What's New
 
-### 1. 🎯 Radial Coverage Analysis
+### 1. Inter-Node Link Quality Matrix
 
-- **Click-to-Scan**: Simply click the map to place your Transmitter (TX), then drag to set your scan radius (up to 20km).
-- **Heatmap Overlay**: See a color-coded signal quality layer that shows you exactly where reception is strongest (Green) or weakest (Red).
-- **Best Links**: The system automatically identifies and ranks the top reception sites based on Line-of-Sight, Fresnel Clearance, and Signal Strength.
+Every site pair in your scan is now automatically analysed for RF link viability using the same Bullington terrain-diffraction model used elsewhere in the tool. The new **Links tab** shows:
 
-### 2. 🏔️ Interactive Terrain Profiles
+| Field | What it tells you |
+|---|---|
+| **Status** | Viable / Degraded / Blocked based on Fresnel zone clearance |
+| **Path Loss** | End-to-end path loss in dB — compare against your link budget |
+| **Fresnel Clearance** | % of first Fresnel zone clear at the worst obstruction point |
+| **Distance** | Haversine distance between the two sites |
 
-- **Deep Dive**: Click any "Best Link" marker to open a detailed **Terrain Profile**.
-- **Visual Physics**: See the actual ground elevation, the direct Line-of-Sight path, and the Fresnel Zone clearance in a beautiful, interactive chart.
+Links are sorted viable-first so the best candidates are always at the top.
 
-### 3. 💾 Data Export
+### 2. Marginal Coverage per Site
 
-- **Take it with you**: Export your analysis results to **CSV** for spreadsheets or **KML** for 3D visualization in Google Earth.
+The **Sites tab** now shows how much *unique* area each node contributes — area that no other selected site covers. This catches redundant placements before you deploy:
 
-### 4. 🎛️ Advanced RF Controls
+- **High unique %** (cyan) → critical site, removing it creates a coverage gap.
+- **Low unique %** (red) → redundant placement, consider relocating.
 
-- **Fine-Tuning**: Adjust **Refraction (K-Factor)** and **Clutter Height** directly from the map interface to model different atmospheric conditions and environments.
+### 3. Mesh Connectivity Score & Topology Tab
 
-## 🛠️ Enhancements
+The new **Topology tab** gives a network-level health summary:
 
-- **Renamed**: "Elevation Scan" is now **Coverage Analysis** to better reflect its capabilities.
-- **Polished**: Scroll propagation is now blocked in panels, preventing accidental map zooms while viewing results.
-- **Clarified**: Tooltips and guidance overlays have been rewritten for clarity.
+- **Mesh Connectivity Score** — percentage of all node pairs that can communicate, either directly or via relay. A fully connected mesh scores 100%.
+- **Multi-hop relay detection** — BFS pathfinding finds pairs that are blocked on a direct link but reachable through intermediate nodes, with the hop count shown.
+- **All-pairs path table** — every combination of sites with its shortest viable path and status.
 
-## 🚀 How to Upgrade
+### 4. Link Lines on the Map
 
-1. Pull the latest: `git pull origin main`
-2. Update dependencies: `docker exec meshrf_dev npm install`
-3. Restart containers: `docker compose -f docker-compose.dev.yml restart`
+Coloured polylines are drawn between every site pair when results are shown, so the topology is visible directly on the terrain:
+
+- **Solid cyan** — viable direct link
+- **Dashed gold** — degraded link (partial terrain obstruction)
+- **Dashed red** — blocked (no direct LOS path)
+
+### 5. Combined Coverage Total
+
+The results panel header now shows the total **union coverage area** of all selected sites — the actual unique terrain covered by the entire proposed network, not the sum of individual footprints.
+
+## Improvements
+
+- Site names from CSV imports are now preserved through the scan and appear in all three tabs and on the map polyline tooltips.
+- The Help button is now context-aware — it explains the fields for whichever tab you have open.
+- The `/scan/start` API endpoint now forwards RF parameters (frequency, K-factor, clutter height) into the Celery task so link analysis uses your configured settings.
+
+## How to Upgrade
+
+```bash
+git pull origin main
+docker compose -f docker-compose.dev.yml up -d --build
+```
 
 ---
 
-_See the unseen. Happy scanning!_
+*Plan smarter. Know your mesh before you deploy.*

@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.0] - 2026-02-10
+
+### Added
+
+- **Inter-Node Link Matrix**: The Multi-Site scan now runs pairwise RF link analysis between every selected site after the viewshed completes. Each pair reports:
+  - **Path Loss (dB)** — Bullington terrain-diffraction model using the same RF parameters as the rest of the tool.
+  - **Fresnel Clearance %** — ratio of clearance to first Fresnel zone at the worst obstruction point.
+  - **Status** — `Viable` (≥60% Fresnel), `Degraded` (0–60%), or `Blocked` (<0%).
+  - **Distance** — haversine distance between the two sites (metric/imperial).
+- **Marginal Coverage Metric**: Each site card now shows how much *unique* area it contributes to the network — area not already covered by any other selected site. Low unique-coverage % flags redundant placements.
+- **Connectivity Score**: Each site now displays how many of the other selected sites it can reach (viable + degraded links), giving an immediate indicator of network centrality.
+- **Combined Coverage Total**: The results panel header now shows the total union area covered by all selected sites combined.
+- **Mesh Topology Tab**: New "Topology" tab in the results panel features:
+  - **Mesh Connectivity Score** — percentage of all node pairs reachable (direct or via relay).
+  - Direct link breakdown by status (Viable / Degraded / Blocked).
+  - **Multi-hop relay detection** — BFS pathfinding identifies pairs that cannot link directly but remain reachable through intermediate nodes, with hop counts.
+  - All-pairs path table showing the shortest viable route between every combination of sites.
+- **Link Lines on Map**: Colored polylines are now drawn between every site pair when results are displayed.
+  - Solid cyan = viable direct link.
+  - Dashed gold = degraded link (partial Fresnel obstruction).
+  - Dashed red = blocked link (terrain obstruction).
+- **Tab-aware Help**: The Help overlay now shows context-specific field definitions for whichever tab is active (Sites, Links, or Topology).
+- **Node names in results**: Site names from CSV imports or manual entry are now preserved through the scan and displayed in all tabs.
+
+### Changed
+
+- **Results Panel redesigned** with three tabs replacing the single flat card list:
+  - **Sites** — individual site metrics (elevation, total coverage, unique coverage %, link count).
+  - **Links** — sorted link matrix (viable links first, blocked last).
+  - **Topology** — mesh health overview and full path table.
+- **Scan endpoint** now forwards frequency, rx height, K-factor, and clutter height into the Celery task so pairwise link analysis uses the correct RF parameters.
+- **Panel width** increased to 380px to accommodate the new four-column metrics grid.
+
 ## [1.13.0] - 2026-02-09
 
 ### Added
