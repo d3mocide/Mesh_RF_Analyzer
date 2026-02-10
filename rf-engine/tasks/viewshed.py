@@ -9,6 +9,7 @@ from celery.utils.log import get_task_logger
 from core.algorithms import calculate_viewshed
 from tile_manager import TileManager
 from models import NodeConfig
+import rf_physics
 
 logger = get_task_logger(__name__)
 
@@ -92,6 +93,8 @@ def calculate_batch_viewshed(self, params):
             
             node_res = {
                 "lat": lat, "lon": lon,
+                "name": node_data.get('name', f'Site {i + 1}'),
+                "height": height,
                 "elevation": round(float(source_elev), 1),
                 "coverage_area_km2": round((coverage_count * (res_m * res_m)) / 1_000_000.0, 2),
                 "grid": grid,
@@ -168,7 +171,85 @@ def calculate_batch_viewshed(self, params):
                 # No more gain to be had (or empty)
                 break
 
-    # 3. Blit to Master Grid and generate Composite
+    # 3. Compute marginal coverage for each selected node (in selection order)
+    covered_so_far = set()
+    for res in selected_results:
+        g = res['grid']
+        lats_g = res['grid_lats']
+        lons_g = res['grid_lons']
+        visible_indices = np.argwhere(g > 0)
+        node_pixels = set()
+        for r, c in visible_indices:
+            y = lat_to_y(lats_g[r])
+            x = lon_to_x(lons_g[c])
+            if 0 <= y < rows and 0 <= x < cols:
+                node_pixels.add((y, x))
+        marginal_pixels = len(node_pixels - covered_so_far)
+        covered_so_far.update(node_pixels)
+        res['marginal_coverage_km2'] = round((marginal_pixels * (res_m * res_m)) / 1_000_000.0, 2)
+
+    total_unique_km2 = round((len(covered_so_far) * (res_m * res_m)) / 1_000_000.0, 2)
+    for res in selected_results:
+        total_cov = res['coverage_area_km2']
+        res['unique_coverage_pct'] = round(
+            (res['marginal_coverage_km2'] / total_cov * 100) if total_cov > 0 else 0.0, 1
+        )
+
+    # 3a. Compute pairwise inter-node link quality
+    self.update_state(state='PROGRESS', meta={'progress': 55, 'message': 'Analyzing inter-node links...'})
+    inter_node_links = []
+    n_selected = len(selected_results)
+    for i in range(n_selected):
+        for j in range(i + 1, n_selected):
+            node_a = selected_results[i]
+            node_b = selected_results[j]
+            try:
+                dist_m = rf_physics.haversine_distance(
+                    node_a['lat'], node_a['lon'],
+                    node_b['lat'], node_b['lon']
+                )
+                elevs = tile_manager.get_elevation_profile(
+                    node_a['lat'], node_a['lon'],
+                    node_b['lat'], node_b['lon'],
+                    samples=50
+                )
+                h_a = node_a.get('height', 10.0)
+                h_b = node_b.get('height', 10.0)
+                link_result = rf_physics.analyze_link(
+                    elevs, dist_m, freq, h_a, h_b,
+                    k_factor=options.get('k_factor', 1.333),
+                    clutter_height=options.get('clutter_height', 0.0)
+                )
+                path_loss_db = rf_physics.calculate_path_loss(
+                    dist_m, elevs, freq, h_a, h_b,
+                    model='bullington',
+                    k_factor=options.get('k_factor', 1.333),
+                    clutter_height=options.get('clutter_height', 0.0)
+                )
+                inter_node_links.append({
+                    "node_a_idx": i,
+                    "node_b_idx": j,
+                    "node_a_name": node_a.get('name', f'Site {i + 1}'),
+                    "node_b_name": node_b.get('name', f'Site {j + 1}'),
+                    "dist_km": round(dist_m / 1000, 2),
+                    "status": link_result['status'],
+                    "path_loss_db": round(float(path_loss_db), 1),
+                    "min_clearance_ratio": round(float(link_result['min_clearance_ratio']), 2)
+                })
+            except Exception as e:
+                logger.error(f"Link analysis failed for nodes {i}-{j}: {e}")
+                inter_node_links.append({
+                    "node_a_idx": i,
+                    "node_b_idx": j,
+                    "node_a_name": selected_results[i].get('name', f'Site {i + 1}'),
+                    "node_b_name": selected_results[j].get('name', f'Site {j + 1}'),
+                    "dist_km": 0,
+                    "status": "unknown",
+                    "path_loss_db": 0,
+                    "min_clearance_ratio": 0
+                })
+
+    # 4. Blit to Master Grid and generate Composite
     for res in selected_results:
         g = res['grid']
         lats = res['grid_lats']
@@ -190,17 +271,31 @@ def calculate_batch_viewshed(self, params):
     
     # 5. Build Final Output
     final_results = []
-    for res in selected_results:
+    for idx, res in enumerate(selected_results):
         final_results.append({
             "lat": res["lat"],
             "lon": res["lon"],
+            "name": res.get("name", f"Site {idx + 1}"),
             "elevation": res["elevation"],
-            "coverage_area_km2": res["coverage_area_km2"]
+            "coverage_area_km2": res["coverage_area_km2"],
+            "marginal_coverage_km2": res.get("marginal_coverage_km2", res["coverage_area_km2"]),
+            "unique_coverage_pct": res.get("unique_coverage_pct", 100.0)
         })
 
+    # Compute connectivity score per node (# of viable/degraded links)
+    connectivity = [0] * len(final_results)
+    for link in inter_node_links:
+        if link["status"] in ("viable", "degraded"):
+            connectivity[link["node_a_idx"]] += 1
+            connectivity[link["node_b_idx"]] += 1
+    for idx, res in enumerate(final_results):
+        res["connectivity_score"] = connectivity[idx]
+
     return {
-        "status": "completed", 
+        "status": "completed",
         "results": final_results,
+        "inter_node_links": inter_node_links,
+        "total_unique_coverage_km2": total_unique_km2,
         "composite": {
             "image": f"data:image/png;base64,{img_str}",
             "bounds": [min_lat, min_lon, max_lat, max_lon]

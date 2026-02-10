@@ -5,6 +5,8 @@ const useSimulationStore = create((set, get) => ({
   nodes: [], // List of candidate nodes: { id, lat, lon, height, name }
   results: null, // Results from batch scan
   compositeOverlay: null, // { image, bounds } for union of visibility
+  interNodeLinks: null, // Pairwise link quality between selected nodes
+  totalUniqueCoverageKm2: null, // Total unique coverage area (km²) of selected nodes union
   isScanning: false,
   scanProgress: 0,
   taskId: null,
@@ -34,6 +36,8 @@ const useSimulationStore = create((set, get) => ({
     nodes: [],
     results: null,
     compositeOverlay: null,
+    interNodeLinks: null,
+    totalUniqueCoverageKm2: null,
     isScanning: false,
     scanProgress: 0,
     taskId: null
@@ -43,7 +47,7 @@ const useSimulationStore = create((set, get) => ({
     const { nodes } = get();
     if (nodes.length === 0) return;
     
-    set({ isScanning: true, scanProgress: 0, results: null, compositeOverlay: null });
+    set({ isScanning: true, scanProgress: 0, results: null, compositeOverlay: null, interNodeLinks: null, totalUniqueCoverageKm2: null });
     
     try {
       const API_TARGET = import.meta.env.VITE_API_URL || 'http://localhost:5001';
@@ -87,11 +91,15 @@ const useSimulationStore = create((set, get) => ({
       } else if (payload.event === 'complete') {
         const actualResults = payload.data?.results || [];
         const composite = payload.data?.composite || null;
-        set({ 
-          isScanning: false, 
-          scanProgress: 100, 
+        const interNodeLinks = payload.data?.inter_node_links || null;
+        const totalUniqueCoverageKm2 = payload.data?.total_unique_coverage_km2 ?? null;
+        set({
+          isScanning: false,
+          scanProgress: 100,
           results: actualResults,
-          compositeOverlay: composite 
+          compositeOverlay: composite,
+          interNodeLinks,
+          totalUniqueCoverageKm2
         });
         eventSource.close();
       } else if (payload.event === 'error') {

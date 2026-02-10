@@ -200,8 +200,12 @@ def start_scan_endpoint(req: dict):
     task = calculate_batch_viewshed.delay({
         "nodes": nodes,
         "options": {
-            "radius": 5000,
-            "optimize_n": optimize_n
+            "radius": req.get("radius", 5000),
+            "optimize_n": optimize_n,
+            "frequency_mhz": req.get("frequency_mhz", 915.0),
+            "rx_height": req.get("rx_height", 2.0),
+            "k_factor": req.get("k_factor", 1.333),
+            "clutter_height": req.get("clutter_height", 0.0)
         }
     })
     
