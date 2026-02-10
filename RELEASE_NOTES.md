@@ -1,24 +1,25 @@
-# Release v1.12.0: The "Precision Engine" Update 🎯🏔️
+# Release v1.12.1: The "Neon Precision" Update �⚡
 
-This release unifies our propagation modeling suite, bringing the high-precision Longley-Rice ITM WebAssembly engine to our point-to-point link analysis tool. We've also finalized our environmental physics engine, making the entire application fully "ground-aware."
+This release focuses on UI polish and functional aesthetics, synchronizing our analysis parameters with the visual language of our toolset. We've introduced dynamic progress tracking and color-coded logic to make the interface feel as precise as the physics driving it.
 
 ## 🌟 Key Changes
 
-### 1. 🏔️ Unified high-precision ITM (WASM)
+### 1. � Logic-Linked Colors
 
-- **Engine Parity**: Point-to-point link analysis now uses the exact same C++ ITM implementation as our coverage maps. No more discrepancies between "The Map" and "The Link."
-- **WASM Default**: The simulation defaults to the highest fidelity model (`itm_wasm`) out of the box, ensuring professionals get the most accurate results immediately.
+- **Visual Grouping**: Optimization sliders now share the exact colors of the tools they represent.
+  - Elevation settings now glow with the same **Purple** as the Viewshed tool.
+  - Prominence tracks with the **Orange** of the RF Simulator.
+- **Cohesive Antenna Mapping**: The Antenna Height slider also adopts the Viewshed purple, creating a unified visual theme for all height-based parameters.
 
-### 🌊 2. Full Environmental Awareness
+### 2. ⚡ Dynamic Progress Sliders
 
-- **Ground Constants**: We've expanded our ground type library. You can now model links over **Sea Water, Fresh Water, Farmland,** and **Industrial** areas with accurate Dielectric Constant ($\epsilon$) and Conductivity ($\sigma$) values.
-- **Climate Integration**: Select your local climate zone (from Equatorial to Desert) to adjust the propagation physics for regional atmospheric conditions.
+- **Instant Feedback**: Sliders now feature a "thick neon" fill that provides immediate visual tracking of your settings.
+- **Refined Glow**: We've tuned the neon intensity. The UI maintains its cyberpunk energy but with a cleaner, more professional balance.
 
-### 🔍 3. Refined Guidance & Logic
+### 3. 🧹 System Consolidation
 
-- **Interactive Model Guide**: We've re-written our propagation guide to help you choose the right model for the job.
-- **Intelligent Fallbacks**: The Python backend now understands `itm_wasm` requests and automatically provides the best terrain-aware alternative for server-side operations.
-- **Calibrated Default Mode**: All Site Finder and Optimization tools now default to the ITM engine for a consistent "Physics First" experience.
+- **Unified Styling**: Removed fragmented inline styles in favor of a robust, global range-input system.
+- **Bug Fixes**: Resolved case-sensitivity issues in weight mapping to ensure the right colors always show up on the right tools.
 
 ## 🚀 How to Upgrade
 
@@ -28,4 +29,4 @@ This release unifies our propagation modeling suite, bringing the high-precision
 
 ---
 
-_The future of mesh RF analysis is about precision. Thank you for building it with us!_
+_Precision isn't just in the numbers; it's in how we see them. Thank you for building meshRF!_

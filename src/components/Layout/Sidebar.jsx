@@ -355,7 +355,10 @@ const Sidebar = () => {
             min="1" max="50" 
             value={antennaHeight} 
             onChange={(e) => setAntennaHeight(Number(e.target.value))}
-            style={{width: '100%', cursor: 'pointer'}}
+            style={{ 
+                '--range-progress': `${((antennaHeight - 1) / 49) * 100}%`,
+                '--range-color': '#a855f7'
+            }}
         />
 
         {/* RX Height Slider - Only for RF Coverage Tool */}
@@ -374,7 +377,10 @@ const Sidebar = () => {
                     min="1" max="30" steps="1"
                     value={rxHeight} 
                     onChange={(e) => setRxHeight(Number(e.target.value))}
-                    style={{width: '100%', cursor: 'pointer', accentColor: 'var(--color-secondary)'}} 
+                    style={{ 
+                        '--range-progress': `${((rxHeight - 1) / 29) * 100}%`,
+                        '--range-color': 'var(--color-secondary)' 
+                    }} 
                 />
             </div>
         )}
@@ -431,7 +437,7 @@ const Sidebar = () => {
             max={DEVICE_PRESETS[selectedDevice].tx_power_max} 
             value={txPower} 
             onChange={handleTxPowerChange}
-            style={{width: '100%', cursor: 'pointer', accentColor: 'var(--color-primary)'}}
+            style={{ '--range-progress': `${(txPower / DEVICE_PRESETS[selectedDevice].tx_power_max) * 100}%` }}
         />
 
         {/* Manual Recalculation Trigger */}
@@ -604,7 +610,7 @@ const Sidebar = () => {
                         name="fade-margin"
                         value={fadeMargin}
                         onChange={(e) => setFadeMargin(Number(e.target.value))}
-                        style={{flexGrow: 1, accentColor: 'var(--color-primary)', cursor: 'pointer'}}
+                        style={{ '--range-progress': `${(fadeMargin / 20) * 100}%` }}
                      />
                      <span style={{fontSize: '0.9em', color: '#fff', width: '24px', textAlign: 'right', fontWeight: 'bold'}}>{fadeMargin}</span>
                  </div>

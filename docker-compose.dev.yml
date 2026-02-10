@@ -14,6 +14,7 @@ services:
       - VITE_MAP_LAT=45.5152
       - VITE_MAP_LNG=-122.6784
       - API_TARGET=http://rf-engine:5001
+    restart: unless-stopped
     networks:
       - meshrf_net
 
@@ -33,6 +34,7 @@ services:
       - ELEVATION_DATASET=${ELEVATION_DATASET:-ned10m}
     depends_on:
       - redis
+    restart: unless-stopped
     networks:
       - meshrf_net
 
@@ -54,6 +56,7 @@ services:
     depends_on:
       - rf-engine
       - redis
+    restart: unless-stopped
     networks:
       - meshrf_net
 

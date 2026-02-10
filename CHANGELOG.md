@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.1] - 2026-02-09
+
+### Added
+
+- **Dynamic Progress Sliders**: All range inputs now feature a high-visibility neon fill that tracks with the thumb.
+- **Synchronized Tool Colors**: Site selection weights are now color-coded to match their corresponding analysis tools for better visual intuition:
+  - **Elevation & Antenna Height**: Purple (#a855f7) - Matches Viewshed.
+  - **Prominence**: Orange (#ff6b00) - Matches RF Simulator.
+  - **Fresnel**: Neon Green (#00ff41).
+
+### Changed
+
+- **Refined Slider Glow**: Tuned down the box-shadow intensity on range sliders for a cleaner, more professional "Cyberpunk" aesthetic.
+- **Theme Compliance**: Updated secondary color to Neon Green to maintain adherence to the project's color standards.
+
+### Fixed
+
+- **Slider Key Mapping**: Resolved a case-sensitivity bug that prevented specialized colors from applying to some optimization sliders.
+- **CSS Style Conflicts**: Removed redundant inline slider styles across multiple components to rely on unified global styling.
+
 ## [1.12.0] - 2026-02-08
 
 ### Added

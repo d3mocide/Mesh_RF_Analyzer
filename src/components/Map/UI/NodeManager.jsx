@@ -399,7 +399,9 @@ const NodeManager = ({ selectedLocation }) => {
                             onChange={(e) => setTargetCount(parseInt(e.target.value))}
                             onMouseDown={(e) => e.stopPropagation()}
                             onClick={(e) => e.stopPropagation()}
-                            style={{width: '100%', accentColor: '#00f2ff'}}
+                            style={{ 
+                                '--range-progress': `${simNodes.length > 1 ? ((targetCount - 1) / (simNodes.length - 1)) * 100 : 0}%` 
+                            }}
                         />
                     </div>
                 )}
