@@ -50,10 +50,8 @@ const useSimulationStore = create((set, get) => ({
     set({ isScanning: true, scanProgress: 0, results: null, compositeOverlay: null, interNodeLinks: null, totalUniqueCoverageKm2: null });
     
     try {
-      const API_TARGET = import.meta.env.VITE_API_URL || 'http://localhost:5001';
-      
       // 1. Trigger Scan
-      const response = await fetch(`${API_TARGET}/scan/start`, {
+      const response = await fetch('/api/scan/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nodes, optimize_n: optimizeN }),
@@ -74,8 +72,7 @@ const useSimulationStore = create((set, get) => ({
   },
   
   listenToProgress: (taskId) => {
-    const API_TARGET = import.meta.env.VITE_API_URL || 'http://localhost:5001';
-    const eventSource = new EventSource(`${API_TARGET}/task_status/${taskId}`);
+    const eventSource = new EventSource(`/api/task_status/${taskId}`);
     
     eventSource.onmessage = (event) => {
       let payload;
