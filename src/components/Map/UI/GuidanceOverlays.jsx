@@ -19,7 +19,7 @@ const GuidanceOverlays = ({
 
     const overlayStyle = {
         position: 'absolute',
-        top: isMobile ? '80px' : 'auto', // Mobile: Top to avoid panel collision
+        top: isMobile ? '120px' : 'auto', // Mobile: Top to avoid panel collision
         bottom: isMobile ? 'auto' : 'calc(40px + env(safe-area-inset-bottom))', // Desktop: Bottom
         left: '50%',
         transform: 'translateX(-50%)',
@@ -226,27 +226,9 @@ const GuidanceOverlays = ({
     
         {((toolMode === 'viewshed' && !viewshedObserver) || (toolMode === 'rf_coverage' && !rfObserver)) && (
             <div style={{
-                position: 'absolute',
-                top: 'auto',
-                bottom: 'calc(40px + env(safe-area-inset-bottom))',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                zIndex: 1000,
-                background: 'rgba(10, 10, 15, 0.95)',
-                backdropFilter: 'blur(10px)',
-                WebkitBackdropFilter: 'blur(10px)',
+                // Match the style and positioning of other overlays
+                ...overlayStyle,
                 border: toolMode === 'viewshed' ? '1px solid #a855f788' : '1px solid #ff6b0088',
-                borderRadius: '12px',
-                padding: '12px 24px',
-                color: '#fff',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '4px',
-                animation: 'slideUp 0.3s ease-out',
-                minWidth: '280px',
-                maxWidth: '90vw'
             }}>
                 <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px' }}>
                     <div style={{ 
@@ -307,8 +289,8 @@ const GuidanceOverlays = ({
                                 <div style={{ fontWeight: 'bold', color: '#a855f7', marginBottom: '4px' }}>Optical Line-of-Sight</div>
                                 <div style={{ marginBottom: '8px' }}>Shows what is physically visible from the chosen point based on 10m-30m terrain data.</div>
                                 <ul style={{ paddingLeft: '18px', margin: 0, color: '#bbb' }}>
-                                    <li><strong>Green Area:</strong> Visible (LOS)</li>
-                                    <li><strong>Purple Area:</strong> Obstructed by terrain</li>
+                                    <li><strong>Purple Area:</strong> Visible (LOS)</li>
+                                    <li><strong>Clear Area:</strong> Obstructed by terrain</li>
                                     <li><strong>Draggable:</strong> Move the marker to instantly re-calculate.</li>
                                 </ul>
                             </>

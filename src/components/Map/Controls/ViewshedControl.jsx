@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
 
-const ViewshedControl = ({ maxDist, setMaxDist, isCalculating, progress, onRecalculate }) => {
+const ViewshedControl = ({ maxDist, setMaxDist, isCalculating, progress, onRecalculate, isMobile }) => {
     const controlRef = useRef(null);
     // Local state for smooth slider dragging
     const [localDist, setLocalDist] = useState(maxDist);
@@ -29,8 +29,11 @@ const ViewshedControl = ({ maxDist, setMaxDist, isCalculating, progress, onRecal
     return (
         <div ref={controlRef} style={{
             position: 'absolute',
-            top: '20px',
-            right: '20px',
+            top: isMobile ? 'auto' : '20px',
+            bottom: isMobile ? 'calc(40px + env(safe-area-inset-bottom))' : 'auto',
+            right: isMobile ? 'auto' : '20px',
+            left: isMobile ? '50%' : 'auto',
+            transform: isMobile ? 'translateX(-50%)' : 'none',
             zIndex: 1000,
             background: 'rgba(10, 10, 18, 0.95)',
             backdropFilter: 'blur(8px)',
@@ -38,7 +41,7 @@ const ViewshedControl = ({ maxDist, setMaxDist, isCalculating, progress, onRecal
             borderRadius: '12px',
             border: '1px solid rgba(0, 242, 255, 0.3)',
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
-            width: '300px',
+            width: isMobile ? 'min(90vw, 400px)' : '300px',
             color: '#fff',
             fontFamily: "'Inter', sans-serif"
         }}>

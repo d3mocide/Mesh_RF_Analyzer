@@ -151,4 +151,20 @@ The ITM supports time/location/situation variability percentages (currently fixe
 
 #### P5-7: Export Capabilities (Completed)
 
+**Features:** Multi-Site Analysis now computes unique coverage per site and marginal gain contribution.
+
+#### P5-6: Pareto Frontier Analysis
+
+**Problem:** Single score hides trade-offs.
+**Solution:** Compute and visualize the Pareto frontier for multi-objective optimization (Elevation vs Coverage vs Access).
+
+#### P5-7: Export Capabilities (Completed)
+
 **Status:** ✅ Implemented in Phase 5 (CSV/KML).
+
+## Upcoming Features (v1.16.0)
+
+### P6-1: Per-Node Coverage Visualization
+
+**Problem:** Multi-Site analysis shows a merged composite, making it hard to distinguish which node covers which area.
+**Solution:** Refactor backend to return individual coverage masks or labeled bitmasks. Render individual node boundaries (dashed lines) or distinct color layers in the frontend to visualize exact per-node coverage.

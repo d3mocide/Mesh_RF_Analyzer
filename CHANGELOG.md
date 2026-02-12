@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.2] - 2026-02-11
+
+### Fixed
+
+- **Mobile Viewshed Layout**: Corrected the positioning of the Viewshed control panel on mobile devices, ensuring it anchors to the bottom of the screen (above the safe area) instead of overlapping the map.
+- **Guidance Text**: Fixed a typo in the Viewshed guidance overlay ("Green Area" -> "Purple Area") to accurately reflect the tool's visual language.
+- **Overlay Overlap**: Adjusted the top offset of guidance overlays on mobile to prevent collision with the top toolbar.
+
+### Changed
+
+- **UI Polish**: Condensed the "Greedy Optimization" toggle in the Multi-Site Manager into a compact single-line layout, saving valuable vertical screen space on mobile.
+- **Advanced RF Settings**: Repositioned the floating "Advanced RF" settings box on mobile (bottom offset: `190px`) to sit comfortably above the bottom control panel without obstructing the view.
+
 ## [1.15.1] - 2026-02-11
 
 ### Fixed

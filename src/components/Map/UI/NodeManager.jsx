@@ -197,11 +197,7 @@ const NodeManager = ({ selectedLocation }) => {
             transition: 'width 0.3s ease'
         },
         optContainer: {
-            background: 'rgba(0, 242, 255, 0.03)',
-            border: '1px solid rgba(0, 242, 255, 0.15)',
-            borderRadius: '8px',
-            padding: '12px',
-            marginBottom: '12px'
+            marginBottom: '10px'
         },
         bulkHeader: {
             display: 'flex',
@@ -375,15 +371,17 @@ const NodeManager = ({ selectedLocation }) => {
 
             {/* Optimization Config */}
             <div style={styles.optContainer}>
-                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
-                    <span style={{color: '#00f2ff', fontSize: '0.75em', fontWeight: 'bold', textTransform: 'uppercase'}}>Greedy Optimization</span>
+                <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: isGreedy ? '8px' : '0'}}>
                     <input 
                         type="checkbox" 
                         checked={isGreedy} 
                         onChange={(e) => setIsGreedy(e.target.checked)}
                         onClick={(e) => e.stopPropagation()}
-                        style={{accentColor: '#00f2ff', cursor: 'pointer'}}
+                        style={{accentColor: '#00f2ff', cursor: 'pointer', width: '14px', height: '14px'}}
                     />
+                    <span style={{color: isGreedy ? '#00f2ff' : '#888', fontSize: '0.8em', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer'}} onClick={() => setIsGreedy(!isGreedy)}>
+                        Greedy Optimization
+                    </span>
                 </div>
                 
                 {isGreedy && (

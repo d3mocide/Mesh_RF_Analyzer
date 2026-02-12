@@ -443,7 +443,9 @@ const OptimizationLayer = ({ active, setActive, onStateUpdate, weights }) => {
                 <div className="settings-panel" 
                     ref={settingsRef}
                     style={{
-                        position: 'absolute', bottom: '30px', left: '20px',
+                        position: 'absolute', 
+                        bottom: isMobile ? '190px' : '30px', 
+                        left: '20px',
                         background: 'rgba(10, 10, 15, 0.95)', padding: '15px',
                         borderRadius: '12px', border: '1px solid #00f2ff',
                         zIndex: 9999, color: '#fff', fontSize: '0.9em',

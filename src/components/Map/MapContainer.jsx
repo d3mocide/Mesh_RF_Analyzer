@@ -84,6 +84,8 @@ const MapComponent = () => {
   const defaultLat = 45.5152;
   const defaultLng = -122.6784;
   const position = React.useMemo(() => [defaultLat, defaultLng], []);
+  
+  const { isMobile } = useRF();
 
   // Lifted State
   const [nodes, setNodes] = useState([]);
@@ -215,13 +217,7 @@ const MapComponent = () => {
   };
 
   const currentStyle = MAP_STYLES[mapStyle] || MAP_STYLES.dark_green;
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
 
   // Trigger RF Recalculation on Parameter Change (via 'Update Calculation' button)
   useEffect(() => {
@@ -680,6 +676,7 @@ const MapComponent = () => {
                 runViewshedAnalysis(viewshedObserver, viewshedMaxDist);
               }
             }}
+            isMobile={isMobile}
         />
       )}
 
