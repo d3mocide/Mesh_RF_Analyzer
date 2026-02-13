@@ -1,32 +1,17 @@
-# Release v1.15.3: Security Hardening & Stability
+# Release v1.15.4: Production Hotfix
 
-This patch release focuses on critical security remediations and backend stability improvements.
-
-## 🔒 Security Hardening
-
-### Infrastructure & Config
-
-- **Redis Authentication**: Enabled password protection for the Redis database service, ensuring the data layer is secure.
-- **Environment Safety**: Removed `process.env` usage from the frontend build process to prevent potential leakage of secrets.
-- **CORS Restriction**: Tightened API access control to allow requests only from localhost origins.
-
-### Input & Output Validation
-
-- **Coordinate Validation**: Added strict validation for latitude/longitude bounds to reject invalid geographic data early.
-- **Rate Limiting**: Introduced rate limits on expensive simulation endpoints to prevent abuse and denial-of-service scenarios.
-- **KML Sanitization**: Implemented XML escaping for KML exports to neutralize potential injection vectors.
+This hotfix resolves critical issues preventing the production Docker build from running correctly.
 
 ## 🐛 Bug Fixes
 
-### Worker Stability
+### Infrastructure
 
-- **Connection Pooling**: Fixed a critical issue where the background worker would exhaust system sockets (`Error 99`) during heavy multi-site scans. Implemented proper Redis connection pooling to reuse connections efficiently.
-
----
+- **Frontend Startup Crash**: Fixed a line-ending issue (CRLF) in `docker-entrypoint.sh` that prevented the Nginx container from starting. Added `.gitattributes` to prevent recurrence.
+- **API Connectivity (502)**: Fixed a port mismatch in `docker-compose.yml`. The `rf-engine` service now correctly listens on port `5001` (was `80`), aligning with the Nginx proxy configuration.
 
 ## Upgrade Instructions
 
-Requires a restart of the backend services to apply new Redis password configurations:
+Rebuild containers to apply the entrypoint fix:
 
 ```bash
 docker-compose down

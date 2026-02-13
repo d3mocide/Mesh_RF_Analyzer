@@ -29,7 +29,7 @@ services:
       # User must download .hgt/.tif files to ./data/opentopodata
       - ELEVATION_DATASET=${ELEVATION_DATASET:-ned10m}
       - REDIS_PASSWORD=${REDIS_PASSWORD:-changeme}
-    command: uvicorn server:app --host 0.0.0.0 --port 80 --log-level warning
+    command: uvicorn server:app --host 0.0.0.0 --port 5001 --log-level warning
     volumes:
       - ./cache:/app/cache
 

@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.4] - 2026-02-12
+
+### Fixed
+
+- **Production Build Crash**: Fixed `docker-entrypoint.sh` having Windows CRLF line endings, which caused the frontend container to crash on startup. Added `.gitattributes` to enforce LF.
+- **502 Bad Gateway**: Corrected `rf-engine` port in `docker-compose.yml` from `80` to `5001` to match the Nginx proxy configuration.
+
 ## [1.15.3] - 2026-02-12
 
 ### Security
