@@ -358,12 +358,14 @@ const MapComponent = () => {
   // Simulation Store integration
   const { nodes: simNodes, results: simResults, compositeOverlay, interNodeLinks, totalUniqueCoverageKm2 } = useSimulationStore();
 
-  // Automatically show results panel when scan finishes
-  useEffect(() => {
+  // Automatically show results panel when scan finishes (render-time state adjustment)
+  const [prevSimResults, setPrevSimResults] = useState(simResults);
+  if (simResults !== prevSimResults) {
+    setPrevSimResults(simResults);
     if (simResults && simResults.length > 0) {
       setShowAnalysisResults(true);
     }
-  }, [simResults]);
+  }
 
   // Prepare DeckGL Layers
   const deckLayers = [];

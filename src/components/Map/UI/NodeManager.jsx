@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useRF } from '../../../context/RFContext';
 import useSimulationStore from '../../../store/useSimulationStore';
 import { Download, Upload, FileSpreadsheet } from 'lucide-react';
@@ -71,12 +71,15 @@ const NodeManager = ({ selectedLocation }) => {
     const [isGreedy, setIsGreedy] = useState(false);
     const [targetCount, setTargetCount] = useState(3);
 
-    useEffect(() => {
+    // Sync manual inputs when selectedLocation changes (render-time state adjustment)
+    const [prevSelectedLocation, setPrevSelectedLocation] = useState(selectedLocation);
+    if (selectedLocation !== prevSelectedLocation) {
+        setPrevSelectedLocation(selectedLocation);
         if (selectedLocation) {
             setManualLat(selectedLocation.lat.toFixed(6));
             setManualLon(selectedLocation.lng.toFixed(6));
         }
-    }, [selectedLocation]);
+    }
 
     const handleAdd = () => {
         if (!manualLat || !manualLon) return;
